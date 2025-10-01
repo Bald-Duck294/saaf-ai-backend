@@ -1,9 +1,7 @@
 // controller/registeredUsersController.js
-import bcrypt from 'bcrypt';
-import crypto from 'crypto';
 import prisma from '../config/prismaClient.mjs';
-// Get all registered users (admin only)
 
+// Get all registered users (admin only)
 export const getAllRegisteredUsers = async (req, res) => {
     try {
         const { company_id } = req.query;
@@ -127,6 +125,11 @@ export const createRegisteredUser = async (req, res) => {
     }
 };
 
+// Generate simple verification token without crypto
+const generateVerificationToken = () => {
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
+};
+
 // Verify phone and check if user can proceed to set password
 export const verifyPhone = async (req, res) => {
     try {
@@ -170,8 +173,8 @@ export const verifyPhone = async (req, res) => {
             });
         }
 
-        // Generate verification token
-        const verificationToken = crypto.randomUUID();
+        // Generate verification token using simple method
+        const verificationToken = generateVerificationToken();
 
         await prisma.registered_users.update({
             where: { phone: phone.trim() },
@@ -240,15 +243,16 @@ export const setPassword = async (req, res) => {
             });
         }
 
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Store password as plain text (NOT RECOMMENDED FOR PRODUCTION)
+        // In production, always hash passwords using bcrypt or similar
+        const plainTextPassword = password;
 
         // Create user account with role_id from registered_user
         const newUser = await prisma.users.create({
             data: {
                 name: registeredUser.name,
                 phone: registeredUser.phone,
-                password: hashedPassword,
+                password: plainTextPassword, // Plain text password - ONLY FOR DEVELOPMENT
                 company_id: registeredUser.company_id,
                 role_id: registeredUser.role_id
             }
