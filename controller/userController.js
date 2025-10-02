@@ -11,7 +11,7 @@ export async function getUser(req, res) {
     console.log(companyId, "companyId")
     const users = await prisma.users.findMany({
       where: {
-        company_id: 1,
+        company_id: companyId,
       },
 
       include: {
@@ -236,6 +236,7 @@ export const createUser = async (req, res) => {
       data: {
         ...data,
         password: hashedPassword,
+        birthdate: (data?.birthdate) ? new Date(data?.birthdate) : null,
         ...(location_ids.length > 0 && {
           location_assignments: {
             create: location_ids.map((locId) => ({
@@ -258,6 +259,7 @@ export const createUser = async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(409).json({ message: `User with this ${error.meta.target.join(', ')} already exists.` });
     }
+    console.log(error?.message, "msg")
     res.status(500).json({ message: "Error creating user", error: error.message });
   }
 };
@@ -267,6 +269,7 @@ export const createUser = async (req, res) => {
 // --- UPDATE USER ---
 // Handles PUT /api/users/:id
 export const updateUser = async (req, res) => {
+
   const userId = BigInt(req.params.id);
   try {
     const { password, location_ids, ...data } = req.body;
@@ -274,7 +277,9 @@ export const updateUser = async (req, res) => {
     if (password) {
       data.password = await bcrypt.hash(password, 10);
     }
-
+    if (data.birthdate) {
+      data.birthdate = new Date(data.birthdate);
+    }
     const updatedUser = await prisma.$transaction(async (tx) => {
       const user = await tx.users.update({ where: { id: userId }, data });
 
@@ -301,11 +306,16 @@ export const updateUser = async (req, res) => {
       typeof value === 'bigint' ? value.toString() : value
     ));
 
-    res.status(200).json(safeUser);
+
+    res.status(200).json({
+      ...safeUser,
+      birthdate: (safeUser?.birthdate) ? new Date(safeUser?.birthdate) : null
+    });
   } catch (error) {
     if (error.code === 'P2002') {
       return res.status(409).json({ message: `User with this ${error.meta.target.join(', ')} already exists.` });
     }
+    console.log(error, "error in update users");
     res.status(500).json({ message: "Error updating user", error: error.message });
   }
 }

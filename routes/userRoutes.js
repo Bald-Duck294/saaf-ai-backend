@@ -8,7 +8,7 @@ const userRouter = express.Router();
 userRouter.get('/users', getUser);
 userRouter.get('/users/:id', getUserById);
 userRouter.post('/users', createUser);
-userRouter.post('/user/:id', updateUser)
+userRouter.post('/users/:id', updateUser)
 userRouter.delete('/users/:id', deleteUser)
 
 export default userRouter;
