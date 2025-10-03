@@ -68,7 +68,7 @@ model locations {
   assigned_users LocationAssignment[]
 
   // --- Existing Relations ---
-  cleaner_assignments cleaner_assignments[]
+  // cleaner_assignments cleaner_assignments[]
   hygiene_scores      hygiene_scores[]
   companies           companies?            @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   locations           locations?            @relation("locationsTolocations", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)

@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "node index.mjs",
+    "build": "prisma generate",
+    "postinstall": "prisma generate",
     "dev": "nodemon index.mjs"
   },
   "dependencies": {
