@@ -4,10 +4,11 @@ import {
   getToiletById,
   getUser,
   createLocation,
-  getZonesWithToilets ,
+  getZonesWithToilets,
   getNearbyLocations
 } from "../controller/getDataController.js";
 
+console.log('in get location rutes');
 const getLocationRoutes = express.Router();
 
 getLocationRoutes.get("/getUsers", getUser);
@@ -16,6 +17,6 @@ getLocationRoutes.get("/locations", getAllToilets);
 getLocationRoutes.post("/locations", createLocation);
 getLocationRoutes.get("/locations/:id", getToiletById);
 getLocationRoutes.get("/zones", getZonesWithToilets);
-getLocationRoutes.get('/nearby' , getNearbyLocations);
+getLocationRoutes.get('/nearby', getNearbyLocations);
 
 export default getLocationRoutes;

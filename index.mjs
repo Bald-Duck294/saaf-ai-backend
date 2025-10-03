@@ -30,6 +30,7 @@ const allowedOrigins = [
   "https://safai-index-frontend.onrender.com", // your frontend (change if needed)
   "https://safai-index.vercel.app",
   "https://saaf-ai.vercel.app",
+  "https://safaiindex.vercel.app"
 ];
 
 app.use(

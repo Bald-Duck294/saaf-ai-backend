@@ -1,18 +1,21 @@
 import prisma from "../config/prismaClient.mjs";
 import db from "../db.js";
+
+
+console.log('from getLocation controller')
 export async function getUser(req, res) {
 
-  console.log('in get user');
+  // console.log('in get user');
   try {
     const companyId = req.query;
 
-    console.log(companyId, "company_id");
+    // console.log(companyId, "company_id");
     const users = await prisma.users.findMany({
       where: {
         company_id: companyId
       }
     });
-    console.log(users, "users");
+    // console.log(users, "users");
 
     // Convert BigInt to string
     const usersWithStringIds = users.map((user) => ({
@@ -216,10 +219,10 @@ export async function getUser(req, res) {
 
 
 export const getAllToilets = async (req, res) => {
-  console.log("get all toilets");
+  // console.log("get all toilets");
   try {
     const { company_id, type_id } = req.query; // get query params
-    console.log(company_id, type_id, "all types of ids");
+    // console.log(company_id, type_id, "all types of ids");
     // Build where clause dynamically
     const whereClause = {};
     if (company_id) {
@@ -263,7 +266,7 @@ export const getAllToilets = async (req, res) => {
       };
     });
 
-    console.log(result.slice(0, 6), "result");
+    // console.log(result.slice(0, 6), "result");
     res.json(result);
   } catch (err) {
     console.error(err);
@@ -435,10 +438,16 @@ export const getZonesWithToilets = async (req, res) => {
   }
 };
 
+
+
 export const createLocation = async (req, res) => {
+
+  console.log("in create location -----------------------------////------------")
   try {
     const { name, parent_id, type_id, latitude, longitude, options } = req.body;
 
+    const { companyId } = req.query;
+    console.log(companyId, "company id create location")
     console.log(
       name,
       parent_id,
@@ -458,7 +467,7 @@ export const createLocation = async (req, res) => {
       data: {
         name,
         parent_id: parent_id ? BigInt(parent_id) : null,
-        company_id: BigInt(2),
+        company_id: (companyId) ? BigInt(companyId) : null,
         latitude: latitude ?? null,
         longitude: longitude ?? null,
         metadata: {},

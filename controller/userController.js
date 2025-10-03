@@ -220,23 +220,39 @@ export async function getUserById(req, res) {
 // Handles POST /api/users
 export const createUser = async (req, res) => {
   console.log('in create user', req.body);
+  console.log('company ID from query:', req.query.companyId);
+
   try {
-    console.log('one');
     const { password, location_ids = [], ...data } = req.body;
+    const { companyId } = req.query; // Extract company_id from query params
+
+    console.log(companyId, "company id from the create user  ");
     if (!password) {
       return res.status(400).json({ message: "Password is required" });
     }
 
-    console.log('two');
+    if (!companyId) {
+      return res.status(400).json({ message: "Company ID is required" });
+    }
+
+    console.log('Hashing password...');
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    console.log('new user', hashedPassword);
+    console.log('Creating user with company_id:', companyId);
+
+    // Helper function to serialize BigInt values
+    const serializeBigInt = (obj) => {
+      return JSON.parse(JSON.stringify(obj, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+      ));
+    };
 
     const newUser = await prisma.users.create({
       data: {
         ...data,
         password: hashedPassword,
-        birthdate: (data?.birthdate) ? new Date(data?.birthdate) : null,
+        company_id: BigInt(companyId), // Add company_id as BigInt
+        birthdate: data?.birthdate ? new Date(data.birthdate) : null,
         ...(location_ids.length > 0 && {
           location_assignments: {
             create: location_ids.map((locId) => ({
@@ -245,24 +261,81 @@ export const createUser = async (req, res) => {
           },
         }),
       },
+      include: {
+        location_assignments: {
+          include: {
+            location: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+              }
+            }
+          }
+        }
+      }
     });
 
-    console.log(newUser, "new user");
+    console.log('User created successfully:', newUser.id);
 
-    const safeUser = JSON.parse(JSON.stringify(newUser, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    ));
+    // Serialize the response to handle BigInt values
+    const safeUser = serializeBigInt({
+      ...newUser,
+      // Ensure all BigInt fields are properly converted
+      id: newUser.id.toString(),
+      company_id: newUser.company_id?.toString(),
+      location_assignments: newUser.location_assignments?.map(assignment => ({
+        ...assignment,
+        location_id: assignment.location_id.toString(),
+        user_id: assignment.user_id.toString(),
+        location: assignment.location ? {
+          ...assignment.location,
+          id: assignment.location.id.toString()
+        } : null
+      }))
+    });
 
-    console.log(safeUser, "safe user");
+    console.log('Serialized user data:', safeUser);
     res.status(201).json(safeUser);
+
   } catch (error) {
+    console.error('Error in createUser:', error);
+
+    // Handle Prisma unique constraint violations
     if (error.code === 'P2002') {
-      return res.status(409).json({ message: `User with this ${error.meta.target.join(', ')} already exists.` });
+      const fieldName = error.meta?.target?.join(', ') || 'field';
+      return res.status(409).json({
+        message: `User with this ${fieldName} already exists.`,
+        code: 'DUPLICATE_ENTRY'
+      });
     }
-    console.log(error?.message, "msg")
-    res.status(500).json({ message: "Error creating user", error: error.message });
+
+    // Handle foreign key constraint violations
+    if (error.code === 'P2003') {
+      return res.status(400).json({
+        message: "Invalid company ID or location ID provided.",
+        code: 'INVALID_REFERENCE'
+      });
+    }
+
+    // Handle other Prisma errors
+    if (error.code?.startsWith('P')) {
+      return res.status(400).json({
+        message: "Database constraint violation.",
+        code: error.code,
+        detail: error.message
+      });
+    }
+
+    // Generic error handling
+    res.status(500).json({
+      message: "Error creating user",
+      error: error.message,
+      code: 'INTERNAL_ERROR'
+    });
   }
 };
+
 
 
 
