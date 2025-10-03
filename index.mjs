@@ -18,7 +18,6 @@ app.use(express.json());
 
 // ✅ Correct CORS setup (put before routes)
 const allowedOrigins = [
-  "*",
   "http://localhost:3000",
   "http://localhost:8100", // Ionic dev
   "http://localhost:8101", // Ionic dev
@@ -33,22 +32,42 @@ const allowedOrigins = [
   "https://safaiindex.vercel.app"
 ];
 
+// app.use(
+//   cors({
+//     origin: function (origin, callback) {
+//       if (!origin || allowedOrigins.includes(origin)) {
+//         callback(null, true);
+//       } else {
+//         callback(new Error("Not allowed by CORS: " + origin));
+//       }
+//     },
+//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//     allowedHeaders: ["Content-Type", "Authorization"],
+//     credentials: true,
+//   })
+// );
+
+
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (like mobile apps or Postman)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.log("CORS blocked origin:", origin); // Add logging
         callback(new Error("Not allowed by CORS: " + origin));
       }
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"], // Add this
     credentials: true,
   })
 );
 
-// ✅ Preflight
+// ✅ Handle preflight for all routes
 app.options("*", cors());
 
 // Routes
