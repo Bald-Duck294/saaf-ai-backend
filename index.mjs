@@ -72,6 +72,7 @@ app.get("/", (req, res) => {
   res.send("Hi there, Your server has successfully started");
 });
 
+// console.log(BigInt('123'));
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
