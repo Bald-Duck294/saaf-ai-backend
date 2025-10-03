@@ -217,28 +217,146 @@ export async function getUserById(req, res) {
 }
 
 
-// Handles POST /api/users
+// // Handles POST /api/users
+// export const createUser = async (req, res) => {
+//   console.log('in create user', req.body);
+//   console.log('company ID from query:', req.query.companyId);
+
+//   try {
+//     const { password, location_ids , companyId = [], ...data } = req.body;
+//     // const { companyId } = req.query; // Extract company_id from query params
+
+//     console.log(companyId, "company id from the create user  ");
+//     if (!password) {
+//       return res.status(400).json({ message: "Password is required" });
+//     }
+
+//     if (!companyId) {
+//       return res.status(400).json({ message: "Company ID is required" });
+//     }
+
+//     console.log('Hashing password...');
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     console.log('Creating user with company_id:', companyId);
+
+//     // Helper function to serialize BigInt values
+//     const serializeBigInt = (obj) => {
+//       return JSON.parse(JSON.stringify(obj, (key, value) =>
+//         typeof value === 'bigint' ? value.toString() : value
+//       ));
+//     };
+
+//     const newUser = await prisma.users.create({
+//       data: {
+//         ...data,
+//         password: hashedPassword,
+//         company_id: BigInt(companyId), // Add company_id as BigInt
+//         birthdate: data?.birthdate ? new Date(data.birthdate) : null,
+//         ...(location_ids.length > 0 && {
+//           location_assignments: {
+//             create: location_ids.map((locId) => ({
+//               location_id: BigInt(locId),
+//             })),
+//           },
+//         }),
+//       },
+//       include: {
+//         location_assignments: {
+//           include: {
+//             location: {
+//               select: {
+//                 id: true,
+//                 name: true,
+//                 address: true,
+//               }
+//             }
+//           }
+//         }
+//       }
+//     });
+
+//     console.log('User created successfully:', newUser.id);
+
+//     // Serialize the response to handle BigInt values
+//     const safeUser = serializeBigInt({
+//       ...newUser,
+//       // Ensure all BigInt fields are properly converted
+//       id: newUser.id.toString(),
+//       company_id: newUser.company_id?.toString(),
+//       location_assignments: newUser.location_assignments?.map(assignment => ({
+//         ...assignment,
+//         location_id: assignment.location_id.toString(),
+//         user_id: assignment.user_id.toString(),
+//         location: assignment.location ? {
+//           ...assignment.location,
+//           id: assignment.location.id.toString()
+//         } : null
+//       }))
+//     });
+
+//     console.log('Serialized user data:', safeUser);
+//     res.status(201).json(safeUser);
+
+//   } catch (error) {
+//     console.error('Error in createUser:', error);
+
+//     // Handle Prisma unique constraint violations
+//     if (error.code === 'P2002') {
+//       const fieldName = error.meta?.target?.join(', ') || 'field';
+//       return res.status(409).json({
+//         message: `User with this ${fieldName} already exists.`,
+//         code: 'DUPLICATE_ENTRY'
+//       });
+//     }
+
+//     // Handle foreign key constraint violations
+//     if (error.code === 'P2003') {
+//       return res.status(400).json({
+//         message: "Invalid company ID or location ID provided.",
+//         code: 'INVALID_REFERENCE'
+//       });
+//     }
+
+//     // Handle other Prisma errors
+//     if (error.code?.startsWith('P')) {
+//       return res.status(400).json({
+//         message: "Database constraint violation.",
+//         code: error.code,
+//         detail: error.message
+//       });
+//     }
+
+//     // Generic error handling
+//     res.status(500).json({
+//       message: "Error creating user",
+//       error: error.message,
+//       code: 'INTERNAL_ERROR'
+//     });
+//   }
+// };
+
 export const createUser = async (req, res) => {
   console.log('in create user', req.body);
-  console.log('company ID from query:', req.query.companyId);
-
+  
   try {
-    const { password, location_ids = [], ...data } = req.body;
-    const { companyId } = req.query; // Extract company_id from query params
+    const { password, location_ids = [], company_id, ...data } = req.body;
+    // Extract company_id from the body, not query
 
-    console.log(companyId, "company id from the create user  ");
+    console.log(company_id, "company_id from body");
+    
     if (!password) {
       return res.status(400).json({ message: "Password is required" });
     }
 
-    if (!companyId) {
+    if (!company_id) {
       return res.status(400).json({ message: "Company ID is required" });
     }
 
     console.log('Hashing password...');
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    console.log('Creating user with company_id:', companyId);
+    console.log('Creating user with company_id:', company_id);
 
     // Helper function to serialize BigInt values
     const serializeBigInt = (obj) => {
@@ -251,7 +369,7 @@ export const createUser = async (req, res) => {
       data: {
         ...data,
         password: hashedPassword,
-        company_id: BigInt(companyId), // Add company_id as BigInt
+        company_id: BigInt(company_id), // Use company_id from body
         birthdate: data?.birthdate ? new Date(data.birthdate) : null,
         ...(location_ids.length > 0 && {
           location_assignments: {
@@ -268,7 +386,7 @@ export const createUser = async (req, res) => {
               select: {
                 id: true,
                 name: true,
-                address: true,
+                // address: true,
               }
             }
           }
@@ -281,7 +399,6 @@ export const createUser = async (req, res) => {
     // Serialize the response to handle BigInt values
     const safeUser = serializeBigInt({
       ...newUser,
-      // Ensure all BigInt fields are properly converted
       id: newUser.id.toString(),
       company_id: newUser.company_id?.toString(),
       location_assignments: newUser.location_assignments?.map(assignment => ({
@@ -335,7 +452,6 @@ export const createUser = async (req, res) => {
     });
   }
 };
-
 
 
 

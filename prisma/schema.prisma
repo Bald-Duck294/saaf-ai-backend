@@ -22,17 +22,17 @@ model activity_logs {
 }
 
 model companies {
-  id            BigInt    @id @default(autoincrement())
-  name          String    @db.VarChar(255)
-  description   String?
-  contact_email String?   @db.VarChar(255)
-  created_at    DateTime? @default(now()) @db.Timestamp(6)
-  updated_at    DateTime? @default(now()) @db.Timestamp(6)
-  status        Boolean   @default(true)
+  id               BigInt             @id @default(autoincrement())
+  name             String             @db.VarChar(255)
+  description      String?
+  contact_email    String?            @db.VarChar(255)
+  created_at       DateTime?          @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?          @default(now()) @db.Timestamp(6)
+  status           Boolean            @default(true)
   location_types   location_types[]
   locations        locations[]
-  users            users[]
   registered_users registered_users[]
+  users            users[]
 }
 
 model hygiene_scores {
@@ -50,30 +50,26 @@ model hygiene_scores {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model locations {
-  id              BigInt                   @id @default(autoincrement())
-  name            String                   @db.VarChar(255)
-  parent_id       BigInt?
-  company_id      BigInt?
-  latitude        Float?
-  longitude       Float?
-  metadata        Json?                    @db.Json
-  type_id         BigInt?
-  options         Json?                    @default("{}")
-  lang_preference String?                  @db.VarChar(255)
-  geom            Unsupported("geometry")?
-  created_at      DateTime?                @default(now()) @db.Timestamp(6)
-  updated_at      DateTime?                @default(now()) @db.Timestamp(6)
-
-  // --- New Relation ---
-  assigned_users LocationAssignment[]
-
-  // --- Existing Relations ---
-  // cleaner_assignments cleaner_assignments[]
+  id                  BigInt                   @id @default(autoincrement())
+  name                String                   @db.VarChar(255)
+  parent_id           BigInt?
+  company_id          BigInt?
+  latitude            Float?
+  longitude           Float?
+  metadata            Json?                    @db.Json
+  created_at          DateTime?                @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?                @default(now()) @db.Timestamp(6)
+  type_id             BigInt?
+  options             Json?                    @default("{}")
+  lang_preference     String?                  @db.VarChar(255)
+  geom                Unsupported("geometry")?
+  assigned_users      LocationAssignment[]
+  cleaner_assignments cleaner_assignments[]
   hygiene_scores      hygiene_scores[]
-  companies           companies?            @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  locations           locations?            @relation("locationsTolocations", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  other_locations     locations[]           @relation("locationsTolocations")
-  location_types      location_types?       @relation(fields: [type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  companies           companies?               @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  locations           locations?               @relation("locationsTolocations", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_locations     locations[]              @relation("locationsTolocations")
+  location_types      location_types?          @relation(fields: [type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([geom], map: "idx_locations_geom", type: Gist)
 }
@@ -124,34 +120,25 @@ model sessions {
 }
 
 model users {
-  id         BigInt    @id @default(autoincrement())
-  name       String    @db.VarChar(255)
-  email      String?   @db.VarChar(255)
-  password   String
-  company_id BigInt?
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  phone      String?   @unique(map: "unique_phone") @db.VarChar(15)
-  // role_id        String?          @db.VarChar(15)
-  age        Int?
-  birthdate  DateTime? @db.Date
-
-  activity_logs  activity_logs[]
-  hygiene_scores hygiene_scores[]
-  sessions       sessions[]
-
-  // --- Role Relation (Replaces old role_id) -
-  role_id Int?
-  role    Role? @relation(fields: [role_id], references: [id], onDelete: SetNull)
-
-  // companies  
-  companies companies? @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
+  id                                BigInt                @id @default(autoincrement())
+  name                              String                @db.VarChar(255)
+  email                             String?               @db.VarChar(255)
+  password                          String
+  company_id                        BigInt?
+  created_at                        DateTime?             @default(now()) @db.Timestamp(6)
+  updated_at                        DateTime?             @default(now()) @db.Timestamp(6)
+  phone                             String?               @unique(map: "unique_phone") @db.VarChar(15)
+  age                               Int?
+  birthdate                         DateTime?             @db.Date
+  role_id                           Int?
+  location_assignments              LocationAssignment[]
+  activity_logs                     activity_logs[]
   cleaner_assignments_as_cleaner    cleaner_assignments[] @relation("CleanerUser")
   cleaner_assignments_as_supervisor cleaner_assignments[] @relation("Supervisor")
-
-  // --- New Relation for Location Management ---
-  location_assignments LocationAssignment[]
+  hygiene_scores                    hygiene_scores[]
+  sessions                          sessions[]
+  companies                         companies?            @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  role                              Role?                 @relation(fields: [role_id], references: [id])
 }
 
 model configurations {
@@ -210,70 +197,61 @@ model spatial_ref_sys {
 }
 
 model cleaner_assignments {
-  id              BigInt    @id @default(autoincrement())
-  name            String    @db.VarChar(255)
+  id              BigInt     @id @default(autoincrement())
+  name            String     @db.VarChar(255)
   cleaner_user_id BigInt
-  supervisor_id   BigInt? // New column
   company_id      BigInt
   type_id         BigInt?
-  location_id     String[]
-  status          String?   @default("unassigned") @db.VarChar(50)
-  assigned_on     DateTime? @default(now()) @db.Timestamp(6)
-  released_on     DateTime? @db.Timestamp(6)
-  created_at      DateTime? @default(now()) @db.Timestamp(6)
-  updated_at      DateTime? @default(now()) @db.Timestamp(6)
-
-  // locations    locations? @relation(fields: [location_id], references: [id], onDelete: Cascade, map: "fk_assignments_location")
-  cleaner_user users      @relation("CleanerUser", fields: [cleaner_user_id], references: [id])
-  supervisor   users?     @relation("Supervisor", fields: [supervisor_id], references: [id])
+  location_id     BigInt?
+  status          String?    @default("unassigned") @db.VarChar(50)
+  assigned_on     DateTime?  @default(now()) @db.Timestamp(6)
+  released_on     DateTime?  @db.Timestamp(6)
+  created_at      DateTime?  @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?  @default(now()) @db.Timestamp(6)
+  supervisor_id   BigInt?
+  cleaner_user    users      @relation("CleanerUser", fields: [cleaner_user_id], references: [id])
+  supervisor      users?     @relation("Supervisor", fields: [supervisor_id], references: [id])
+  locations       locations? @relation(fields: [location_id], references: [id], onDelete: Cascade, map: "fk_assignments_location")
 }
 
 model LocationAssignment {
-  id          BigInt  @id @default(autoincrement())
+  id          BigInt    @id @default(autoincrement())
   location_id BigInt
   user_id     BigInt
-  is_active   Boolean @default(true) // True if the user is currently assigned
-
+  is_active   Boolean   @default(true)
   assigned_at DateTime  @default(now())
-  revoked_at  DateTime? // Timestamp for when the assignment was ended
+  revoked_at  DateTime?
+  location    locations @relation(fields: [location_id], references: [id], onDelete: Cascade)
+  user        users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  // --- Relations ---
-  location locations @relation(fields: [location_id], references: [id], onDelete: Cascade)
-  user     users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  // A user can only be assigned to a specific location once
   @@unique([location_id, user_id])
   @@index([user_id])
   @@index([location_id])
 }
 
 model Role {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique @db.VarChar(50)
-  description String?
-  permissions String[] @default([]) // e.g., ["users:create", "locations:assign"]
-  is_active   Boolean  @default(true)
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
+  id               Int                @id @default(autoincrement())
+  name             String             @unique @db.VarChar(50)
+  description      String?
+  permissions      String[]           @default([])
+  is_active        Boolean            @default(true)
+  created_at       DateTime           @default(now())
+  updated_at       DateTime           @updatedAt
+  registered_users registered_users[]
   users            users[]
-  registered_users registered_users[] // ✅ Add this relation
 }
 
 model registered_users {
-  id                 BigInt   @id @default(autoincrement())
+  id                 BigInt    @id @default(autoincrement())
   company_id         BigInt
-  name               String   @db.VarChar(255)
-  phone              String   @unique @db.VarChar(15)
-  role_id            Int // ✅ Reference to Role table instead of string
-  temporary_password String?  @db.VarChar(255)
-  is_verified        Boolean  @default(false)
-  verification_token String?  @unique @db.VarChar(255)
-  created_at         DateTime @default(now()) @db.Timestamp(6)
-  updated_at         DateTime @default(now()) @db.Timestamp(6)
-
-  // Relations
-  companies companies @relation(fields: [company_id], references: [id], onDelete: Cascade)
-  role      Role      @relation(fields: [role_id], references: [id], onDelete: Restrict)
+  name               String    @db.VarChar(255)
+  phone              String    @unique @db.VarChar(15)
+  role_id            Int
+  temporary_password String?   @db.VarChar(255)
+  is_verified        Boolean   @default(false)
+  verification_token String?   @unique @db.VarChar(255)
+  created_at         DateTime  @default(now()) @db.Timestamp(6)
+  updated_at         DateTime  @default(now()) @db.Timestamp(6)
+  companies          companies @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  role               Role      @relation(fields: [role_id], references: [id])
 }
