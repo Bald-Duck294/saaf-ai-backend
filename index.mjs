@@ -55,7 +55,7 @@ app.options("*", cors());
 
 app.use("/api", loginRoute);
 app.use("/api", registered_users_router);
-app.use("/api", verifyToken);
+// app.use("/api", verifyToken);
 
 app.use("/api", getLocationRoutes);
 app.use("/api", location_types_router);
