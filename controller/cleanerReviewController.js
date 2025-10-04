@@ -362,11 +362,20 @@ export const getCleanerReviewsById = async (req, res) => {
       });
     }
 
-    // ✅ Safe serialization function for BigInt handling
+    // ✅ Fixed serialization function
     const safeSerialize = (obj) => {
       if (obj === null || obj === undefined) return obj;
+
+      // ✅ Handle BigInt
       if (typeof obj === 'bigint') return obj.toString();
+
+      // ✅ Handle Date objects BEFORE generic object handling
+      if (obj instanceof Date) return obj.toISOString();
+
+      // ✅ Handle Arrays
       if (Array.isArray(obj)) return obj.map(safeSerialize);
+
+      // ✅ Handle generic objects (but after Date check)
       if (typeof obj === 'object') {
         const serialized = {};
         for (const [key, value] of Object.entries(obj)) {
@@ -374,8 +383,11 @@ export const getCleanerReviewsById = async (req, res) => {
         }
         return serialized;
       }
+
+      // ✅ Return primitives as-is
       return obj;
     };
+
 
     // ✅ Serialize all review data
     const serializedReviews = reviews.map(review => safeSerialize(review));
