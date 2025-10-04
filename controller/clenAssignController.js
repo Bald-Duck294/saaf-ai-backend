@@ -150,6 +150,104 @@ export const getAssignmentByCleanerUserId = async (req, res) => {
   }
 };
 
+
+
+// controller/assignmentController.js (or wherever your assignment controllers are)
+
+export const getAssignmentById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { company_id } = req.query;
+
+    // Input validation
+    if (!id || isNaN(id)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid assignment ID provided"
+      });
+    }
+
+    // Build where clause
+    let whereClause = {
+      id: BigInt(id)
+    };
+
+    // Add company filter if provided
+    if (company_id) {
+      whereClause.company_id = BigInt(company_id);
+    }
+
+    const assignment = await prisma.cleaner_assignments.findUnique({
+      where: whereClause,
+      include: {
+        // Include user details
+        cleaner_user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: {
+              select: {
+                name: true
+              }
+            }
+          }
+        },
+        // Include location details  
+        locations: {
+          select: {
+            id: true,
+            name: true,
+            latitude: true,
+            longitude: true,
+            location_types: {
+              select: {
+                name: true
+              }
+            }
+          }
+        },
+        // Include supervisor details
+        supervisor: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        status: "error",
+        message: "Assignment not found"
+      });
+    }
+
+    // Serialize BigInt values
+    const serializedAssignment = JSON.parse(JSON.stringify(assignment, (key, value) =>
+      typeof value === 'bigint' ? value.toString() : value
+    ));
+
+    res.json({
+      status: "success",
+      data: serializedAssignment,
+      message: "Assignment retrieved successfully"
+    });
+
+  } catch (error) {
+    console.error("Get assignment by ID error:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to fetch assignment",
+      detail: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+};
+
+
 /**
  * CREATE new assignment
  */
@@ -185,9 +283,7 @@ export const getAssignmentByCleanerUserId = async (req, res) => {
 //   }
 // };
 
-/**
- * UPDATE assignment by id
- */
+
 
 export const createAssignment = async (req, res) => {
   console.log("in create assignmets");
@@ -302,9 +398,6 @@ export const updateAssignment = async (req, res) => {
   }
 };
 
-/**
- * DELETE assignment by id
- */
 export const deleteAssignment = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
