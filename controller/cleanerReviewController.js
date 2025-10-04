@@ -76,6 +76,7 @@ export const getCleanerReviewsById = async (req, res) => {
   const { cleaner_user_id } = req.params;
   console.log(req.params, "params");
 
+  let stats = {};
   try {
     // Input validation
     if (!cleaner_user_id || isNaN(cleaner_user_id)) {
@@ -146,9 +147,13 @@ export const getCleanerReviewsById = async (req, res) => {
     });
 
     if (reviews.length === 0) {
-      return res.status(500).json({
-        status: "error",
+      return res.status(200).json({
+        status: "success",
         message: "No reviews found for this cleaner",
+        data: {
+          reviews: [],
+          stats: stats  // important
+        },
       });
     }
 
@@ -183,7 +188,7 @@ export const getCleanerReviewsById = async (req, res) => {
     const serializedReviews = reviews.map(review => safeSerialize(review));
 
     // ✅ Calculate stats from the reviews
-    const stats = {
+    stats = {
       total_reviews: serializedReviews.length,
       completed_reviews: serializedReviews.filter(r => r.status === 'completed').length,
       ongoing_reviews: serializedReviews.filter(r => r.status === 'ongoing').length,

@@ -114,7 +114,10 @@ export const getAllAssignments = async (req, res) => {
  */
 export const getAssignmentByCleanerUserId = async (req, res) => {
   try {
-    const cleanerUserId = parseInt(req.params.id);
+    // const cleanerUserId = parseInt(req.params.id);
+    const { cleaner_user_id } = req.params;
+    const cleanerUserId = parseInt(cleaner_user_id);
+
     if (isNaN(cleanerUserId)) {
       return res.status(400).json({
         status: "error",
