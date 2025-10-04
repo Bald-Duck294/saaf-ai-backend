@@ -33,6 +33,7 @@ model companies {
   locations        locations[]
   registered_users registered_users[]
   users            users[]
+  cleaner_review   cleaner_review[] @relation("CompanyReviews")
 }
 
 model hygiene_scores {
@@ -70,6 +71,8 @@ model locations {
   locations           locations?               @relation("locationsTolocations", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_locations     locations[]              @relation("locationsTolocations")
   location_types      location_types?          @relation(fields: [type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  // ✅ Add cleaner review relationship
+  cleaner_reviews     cleaner_review[]         @relation("LocationReviews")
 
   @@index([geom], map: "idx_locations_geom", type: Gist)
 }
@@ -139,6 +142,7 @@ model users {
   sessions                          sessions[]
   companies                         companies?            @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   role                              Role?                 @relation(fields: [role_id], references: [id])
+  cleaner_reviews                   cleaner_review[]      @relation("CleanerReviews")
 }
 
 model configurations {
@@ -151,6 +155,7 @@ model configurations {
   created_at  DateTime @default(now()) @db.Timestamptz(6)
   updated_at  DateTime @default(now()) @db.Timestamptz(6)
 }
+
 
 model cleaner_review {
   id              BigInt    @id @default(autoincrement())
@@ -169,6 +174,12 @@ model cleaner_review {
   after_photo     String[]
   status          String    @default("ongoing")
   company_id      BigInt?
+
+  // ✅ Add foreign key relationships
+  cleaner_user users?     @relation("CleanerReviews", fields: [cleaner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  location     locations? @relation("LocationReviews", fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  company      companies? @relation("CompanyReviews", fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
 }
 
 model user_review {
