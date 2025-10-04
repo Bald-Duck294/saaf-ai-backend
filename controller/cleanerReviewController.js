@@ -68,218 +68,8 @@ export async function getCleanerReview(req, res) {
   }
 }
 
-// =========================================================
-// 2️⃣ GET reviews by cleaner ID
-// =========================================================
-// export const getCleanerReviewsById = async (req, res) => {
-//   console.log('in get cleander review')
-//   const { id } = req.params;
-//   console.log(req.params, "params");
-//   try {
-//     const reviews = await prisma.cleaner_review.findMany({
-//       where: {
-//         id: BigInt(id),
-//       },
-//     });
-
-//     const serialized = reviews.map((r) => {
-//       const safeReview = {};
-//       for (const [key, value] of Object.entries(r)) {
-//         safeReview[key] = typeof value === "bigint" ? value.toString() : value;
-//       }
 
 
-//       return safeReview;
-//     });
-
-//     console.log(serialized, "data  of single cleaner review ")
-//     res.json({
-//       status: "success",
-//       data: serialized,
-//       message: "Data retrieved Successfully!",
-//     });
-//   } catch (err) {
-//     console.error("Fetch Reviews by ID Error:", err);
-//     res.status(500).json({
-//       status: "error",
-//       message: "Failed to fetch cleaner reviews by ID",
-//       detail: err.message,
-//     });
-//   }
-// };
-
-
-// export const getCleanerReviewsById = async (req, res) => {
-//   console.log('in get cleaner review');
-//   const { cleaner_user_id } = req.params; // Changed from 'id' to 'cleaner_user_id'
-
-//   console.log(req.params, "params");
-
-//   try {
-//     // First, get the review details
-//     const reviews = await prisma.cleaner_review.findMany({
-//       where: {
-//         cleaner_user_id: BigInt(cleaner_user_id), // Changed this line
-//       },
-//       orderBy: {
-//         created_at: 'desc', // Optional: Order by most recent first
-//       },
-//     });
-
-//     if (reviews.length === 0) {
-//       return res.status(404).json({
-//         status: "error",
-//         message: "Review not found",
-//       });
-//     }
-
-//     // Get user details for each review (if cleaner_user_id exists)
-//     const enrichedReviews = await Promise.all(
-//       reviews.map(async (review) => {
-//         let userDetails = null;
-
-//         if (review.cleaner_user_id) {
-//           try {
-//             // Fetch user details from users table
-//             userDetails = await prisma.users.findUnique({
-//               where: {
-//                 id: review.cleaner_user_id,
-//               },
-//               select: {
-//                 id: true,
-//                 name: true,
-//                 email: true,
-//                 phone: true,
-//                 role: true,
-//                 created_at: true,
-//               }
-//             });
-//           } catch (userError) {
-//             console.error('Error fetching user details:', userError);
-//           }
-//         }
-
-//         // Serialize the review data
-//         const safeReview = {};
-//         for (const [key, value] of Object.entries(review)) {
-//           safeReview[key] = typeof value === "bigint" ? value.toString() : value;
-//         }
-
-//         // Add user details to the review object
-//         return {
-//           ...safeReview,
-//           cleaner_details: userDetails ? {
-//             id: userDetails.id.toString(),
-//             name: userDetails.name,
-//             email: userDetails.email,
-//             phone: userDetails.phone,
-//             role: userDetails.role,
-//             joined_date: userDetails.created_at,
-//           } : null,
-//         };
-//       })
-//     );
-
-//     console.log(enrichedReviews, "enriched data of single cleaner review");
-
-//     res.json({
-//       status: "success",
-//       data: enrichedReviews,
-//       message: "Data retrieved Successfully!",
-//     });
-//   } catch (err) {
-//     console.error("Fetch Reviews by ID Error:", err);
-//     res.status(500).json({
-//       status: "error",
-//       message: "Failed to fetch cleaner reviews by ID",
-//       detail: err.message,
-//     });
-//   }
-// };
-
-
-
-// export const getCleanerReviewsById = async (req, res) => {
-//   console.log('in get cleaner review by cleaner_user_id');
-//   const { cleaner_user_id } = req.params; // Changed from 'id' to 'cleaner_user_id'
-//   console.log(req.params, "params");
-
-//   try {
-//     // Query by cleaner_user_id instead of id
-//     const reviews = await prisma.cleaner_review.findMany({
-//       where: {
-//         cleaner_user_id: BigInt(cleaner_user_id), // Changed this line
-//       },
-//       orderBy: {
-//         created_at: 'desc', // Optional: Order by most recent first
-//       },
-//     });
-
-//     if (reviews.length === 0) {
-//       return res.status(404).json({
-//         status: "error",
-//         message: "No reviews found for this cleaner",
-//       });
-//     }
-
-//     // Get user details for the cleaner (fetch once since all reviews are for same cleaner)
-//     let userDetails = null;
-//     if (reviews[0].cleaner_user_id) {
-//       try {
-//         userDetails = await prisma.users.findUnique({
-//           where: {
-//             id: reviews[0].cleaner_user_id,
-//           },
-//           select: {
-//             id: true,
-//             name: true,
-//             email: true,
-//             phone: true,
-//             role: true,
-//             created_at: true,
-//           }
-//         });
-//       } catch (userError) {
-//         console.error('Error fetching user details:', userError);
-//       }
-//     }
-
-//     // Serialize the review data
-//     const enrichedReviews = reviews.map((review) => {
-//       const safeReview = {};
-//       for (const [key, value] of Object.entries(review)) {
-//         safeReview[key] = typeof value === "bigint" ? value.toString() : value;
-//       }
-
-//       return {
-//         ...safeReview,
-//         cleaner_details: userDetails ? {
-//           id: userDetails.id.toString(),
-//           name: userDetails.name,
-//           email: userDetails.email,
-//           phone: userDetails.phone,
-//           role: userDetails.role,
-//           joined_date: userDetails.created_at,
-//         } : null,
-//       };
-//     });
-
-//     console.log(enrichedReviews, "enriched data of cleaner reviews");
-
-//     res.json({
-//       status: "success",
-//       data: enrichedReviews,
-//       message: "Data retrieved Successfully!",
-//     });
-//   } catch (err) {
-//     console.error("Fetch Reviews by Cleaner ID Error:", err);
-//     res.status(500).json({
-//       status: "error",
-//       message: "Failed to fetch cleaner reviews by cleaner ID",
-//       detail: err.message,
-//     });
-//   }
-// };
 
 export const getCleanerReviewsById = async (req, res) => {
   console.log('Getting cleaner reviews by cleaner_user_id');
@@ -356,7 +146,7 @@ export const getCleanerReviewsById = async (req, res) => {
     });
 
     if (reviews.length === 0) {
-      return res.status(404).json({
+      return res.status(500).json({
         status: "error",
         message: "No reviews found for this cleaner",
       });
@@ -576,6 +366,8 @@ export async function createCleanerReview(req, res) {
 // =========================================================
 // 4️⃣ COMPLETE review (after photos + AI scoring)
 // =========================================================
+
+
 // export async function completeCleanerReview(req, res) {
 //   try {
 //     const { final_comment, id } = req.body;
