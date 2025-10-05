@@ -6,7 +6,8 @@ import getLocationRoutes from "./routes/LocationRoutes.js";
 import location_types_router from "./routes/locationTypes.js";
 import configRouter from "./routes/configRoutes.js";
 import clean_review_Router from "./routes/CleanerReviewRoutes.js";
-import reviewRoutes from "./routes/reviewRoutes.js";
+// import reviewRoutes from "./routes/reviewRoutes.js";
+import reviewRoutes from "./routes/reviewRoutes.js"
 import loginRoute from "./routes/loginApi.js";
 import clen_assign_router from "./routes/clen_assignRoutes.js";
 import userRouter from "./routes/userRoutes.js";
@@ -76,13 +77,14 @@ app.use("/api", loginRoute);
 app.use("/api", registered_users_router);
 // app.use("/api", verifyToken);
 
-app.use("/api", getLocationRoutes);
+app.use("/api/locations", getLocationRoutes);
+// app.use("/api", getLocationRoutes);
 app.use("/api", location_types_router);
 app.use("/api", configRouter);
-app.use("/api/cleaner-reviews", clean_review_Router);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api", clen_assign_router);
-app.use("/api", userRouter);
+app.use("/api/cleaner-reviews", clean_review_Router);
+app.use("/api/users", userRouter);
 app.use("/api/companies", companyRouter);
 app.use('/api/role', roleRouter);
 
