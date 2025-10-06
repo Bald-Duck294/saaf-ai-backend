@@ -33,7 +33,7 @@ model companies {
   locations        locations[]
   registered_users registered_users[]
   users            users[]
-  cleaner_review   cleaner_review[] @relation("CompanyReviews")
+  cleaner_review   cleaner_review[]   @relation("CompanyReviews")
 }
 
 model hygiene_scores {
@@ -63,6 +63,7 @@ model locations {
   type_id             BigInt?
   options             Json?                    @default("{}")
   lang_preference     String?                  @db.VarChar(255)
+  images              String[]
   geom                Unsupported("geometry")?
   assigned_users      LocationAssignment[]
   cleaner_assignments cleaner_assignments[]
@@ -178,7 +179,6 @@ model cleaner_review {
   cleaner_user users?     @relation("CleanerReviews", fields: [cleaner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   location     locations? @relation("LocationReviews", fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   company      companies? @relation("CompanyReviews", fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
 }
 
 model user_review {
