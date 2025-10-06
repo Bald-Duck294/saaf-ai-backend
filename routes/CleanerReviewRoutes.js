@@ -79,6 +79,7 @@ const debugFields = (req, res, next) => {
 // Routes
 clean_review_Router.get("/", getCleanerReview);
 clean_review_Router.get("/:cleaner_user_id", getCleanerReviewsById);
+clean_review_Router.get("/task/:task_id", getCleanerReviewsByTaskId);
 
 // Start review (before photos)
 clean_review_Router.post(
