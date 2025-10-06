@@ -227,6 +227,164 @@ export const getCleanerReviewsById = async (req, res) => {
 };
 
 
+export const getCleanerReviewsByTaskId = async (req, res) => {
+  console.log('Getting cleaner reviews by task id');
+  const { task_id } = req.params;
+  console.log(req.params, "params");
+
+  let stats = {};
+  try {
+    // Input validation
+    if (!task_id || isNaN(task_id)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid cleaner user ID provided"
+      });
+    }
+
+    // ✅ Single query with all related data using include
+    const reviews = await prisma.cleaner_review.findMany({
+      where: {
+        id: BigInt(task_id),
+      },
+      include: {
+        // ✅ Include user details automatically
+        cleaner_user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            created_at: true,
+            updated_at: true,
+            role: {
+              select: {
+                id: true,
+                name: true,
+                description: true
+              }
+            }
+          }
+        },
+        // ✅ Include location details
+        location: {
+          select: {
+            id: true,
+            name: true,
+            latitude: true,
+            longitude: true,
+            metadata: true,
+            location_types: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            locations: { // parent location
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        // ✅ Include company details
+        company: {
+          select: {
+            id: true,
+            name: true,
+            description: true
+          }
+        }
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    if (reviews.length === 0) {
+      return res.status(200).json({
+        status: "success",
+        message: "No reviews found for this cleaner",
+        data: {
+          reviews: [],
+          stats: stats  // important
+        },
+      });
+    }
+
+    // console.log(reviews, "reviews")
+
+    // ✅ Fixed serialization function
+    const safeSerialize = (obj) => {
+      if (obj === null || obj === undefined) return obj;
+
+      // ✅ Handle BigInt
+      if (typeof obj === 'bigint') return obj.toString();
+
+      // ✅ Handle Date objects BEFORE generic object handling
+      if (obj instanceof Date) return obj.toISOString();
+
+      // ✅ Handle Arrays
+      if (Array.isArray(obj)) return obj.map(safeSerialize);
+
+      // ✅ Handle generic objects (but after Date check)
+      if (typeof obj === 'object') {
+        const serialized = {};
+        for (const [key, value] of Object.entries(obj)) {
+          serialized[key] = safeSerialize(value);
+        }
+        return serialized;
+      }
+
+      // ✅ Return primitives as-is
+      return obj;
+    };
+
+
+    // ✅ Serialize all review data
+    const serializedReviews = reviews.map(review => safeSerialize(review));
+
+    console.log(serializedReviews, "serilized regviews")
+    // ✅ Calculate stats from the reviews
+    stats = {
+      total_reviews: serializedReviews.length,
+      completed_reviews: serializedReviews.filter(r => r.status === 'completed').length,
+      ongoing_reviews: serializedReviews.filter(r => r.status === 'ongoing').length,
+      total_tasks_today: serializedReviews.filter(r => {
+        try {
+          const today = new Date();
+          const reviewDate = new Date(r.created_at);
+          return reviewDate.toDateString() === today.toDateString();
+        } catch {
+          return false;
+        }
+      }).length,
+      // ✅ Get cleaner info from first review (all reviews are for same cleaner)
+      // cleaner_info: serializedReviews[0]?.cleaner_user || null
+    };
+
+    console.log('Successfully fetched reviews with relationships');
+
+    res.json({
+      status: "success",
+      data: {
+        reviews: serializedReviews,
+        stats: stats  // important
+      },
+      message: "Cleaner reviews retrieved successfully!"
+    });
+
+  } catch (err) {
+    console.error("Fetch Reviews by Cleaner ID Error:", err);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to fetch cleaner reviews by cleaner ID",
+      detail: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
+  }
+};
+
 // =========================================================
 // 3️⃣ CREATE review (before photos)
 // =========================================================
