@@ -11,7 +11,7 @@ import path from "path";
 // const BASE_URL = process.env.BASE_URL || "https://safai-index-backend.onrender.com";
 
 export async function getCleanerReview(req, res) {
-  console.log("request made");
+  console.log("request made from get cleaner reviews");
 
   const { cleaner_user_id, status, date, company_id } = req.query;
 
@@ -46,19 +46,66 @@ export async function getCleanerReview(req, res) {
 
     const reviews = await prisma.cleaner_review.findMany({
       where: whereClause,
-    });
-
-    // console.log('befor serilize')
-    const serialized = reviews.map((r) => {
-      const safeReview = {};
-      for (const [key, value] of Object.entries(r)) {
-        safeReview[key] = typeof value === "bigint" ? value.toString() : value;
+      include: {
+        cleaner_user: {
+          include: {
+            role: true  // Include all role fields
+          }
+        },
+        location: {
+          include: {
+            location_types: true,  // Include all location_type fields
+            locations: true        // Include all parent location fields
+          }
+        },
+        company: true  // Include all company fields
       }
-      return safeReview;
     });
 
-    console.log(serialized.length, "data");
-    res.json(serialized);
+
+
+
+    // ✅ Fixed serialization function
+    const safeSerialize = (obj) => {
+      if (obj === null || obj === undefined) return obj;
+
+      // ✅ Handle BigInt
+      if (typeof obj === 'bigint') return obj.toString();
+
+      // ✅ Handle Date objects BEFORE generic object handling
+      if (obj instanceof Date) return obj.toISOString();
+
+      // ✅ Handle Arrays
+      if (Array.isArray(obj)) return obj.map(safeSerialize);
+
+      // ✅ Handle generic objects (but after Date check)
+      if (typeof obj === 'object') {
+        const serialized = {};
+        for (const [key, value] of Object.entries(obj)) {
+          serialized[key] = safeSerialize(value);
+        }
+        return serialized;
+      }
+
+      // ✅ Return primitives as-is
+      return obj;
+    };
+
+
+    // ✅ Serialize all review data
+    const serializedReviews = reviews.map(review => safeSerialize(review));
+    console.log('befor serilize', serializedReviews);
+    // const serialized = reviews.map((r) => {
+    //   const safeReview = {};
+    //   for (const [key, value] of Object.entries(r)) {
+    //     safeReview[key] = typeof value === "bigint" ? value.toString() : value;
+    //   }
+    //   return safeReview;
+    // });
+
+    // console.log(serialized, "serilized data")
+    // console.log(serialized.length, "data");
+    res.json(serializedReviews);
   } catch (err) {
     console.error("Fetch Cleaner Reviews Error:", err);
     res.status(500).json({
