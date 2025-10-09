@@ -31,7 +31,7 @@ export async function getUser(req, res) {
     res.json(usersWithStringIds);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Error fetching users");
+    res.status(500).send({msg: "Error fetching users", err});
   }
 }
 

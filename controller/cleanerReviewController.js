@@ -920,6 +920,7 @@ export async function completeCleanerReview(req, res) {
         after_photo: afterPhotos,
         final_comment: final_comment || null,
         status: "completed",
+        updated_at: new Date().toISOString()
       },
     });
 
