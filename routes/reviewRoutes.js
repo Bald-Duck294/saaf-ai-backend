@@ -100,7 +100,7 @@
 import express from "express";
 import prisma from "../config/prismaClient.mjs";
 // import { upload, processAndUploadImages } from "../middleware/imageUpload.js";
-import { upload , processAndUploadImages } from "../middlewares/imageUpload.js";
+import { upload, processAndUploadImages } from "../middlewares/imageUpload.js";
 
 const reviewRoutes = express.Router();
 
@@ -114,14 +114,14 @@ function normalizeBigInt(obj) {
 
 // ----------- POST /api/reviews/user-review ------------
 reviewRoutes.post(
-  "/user-review", 
+  "/user-review",
   upload.fields([{ name: 'images', maxCount: 5 }]), // Configure multer for multiple images
   processAndUploadImages([
     { fieldName: 'images', folder: 'user-reviews', maxCount: 5 }
   ]),
   async (req, res) => {
     console.log("POST request made for user_review");
-    
+
     try {
       const body = req.body;
       console.log("Received body:", body);
@@ -129,7 +129,7 @@ reviewRoutes.post(
 
       // Parse reason_ids safely
       const reasonIds = JSON.parse(body.reason_ids || "[]");
-      
+
       // Get Cloudinary URLs from middleware
       const imageUrls = req.uploadedFiles?.images || [];
 
@@ -153,16 +153,16 @@ reviewRoutes.post(
       });
 
       console.log("Review created:", review);
-      res.status(201).json({ 
-        success: true, 
+      res.status(201).json({
+        success: true,
         data: normalizeBigInt(review),
         message: "Review submitted successfully!"
       });
-      
+
     } catch (error) {
       console.error("Review creation failed:", error);
-      res.status(400).json({ 
-        success: false, 
+      res.status(400).json({
+        success: false,
         error: error.message,
         message: "Failed to submit review"
       });
@@ -174,26 +174,35 @@ reviewRoutes.post(
 reviewRoutes.get("/", async (req, res) => {
   try {
     const { toilet_id, limit = 50 } = req.query;
-    
+
     const whereClause = toilet_id ? { toilet_id: BigInt(toilet_id) } : {};
-    
+
     const user_reviews = await prisma.user_review.findMany({
       where: whereClause,
       orderBy: { created_at: "desc" },
       take: parseInt(limit),
     });
 
-    res.json({ 
-      success: true, 
+    console.log(user_reviews, "user_reviews");
+    // const serilizedUserReview = user_reviews.map((item)=>  ({
+    //   ...item ,
+    //   id: item?.id.toString(),
+    //   cleaner_user_id : item?.cleaner_user_id.toString(),
+    //   company_id : item?.company_id.toString ,
+    //   location_id : item?.location_id.toString()
+    // }))
+
+    res.json({
+      success: true,
       data: normalizeBigInt(user_reviews),
       count: user_reviews.length
     });
-    
+
   } catch (error) {
     console.error("Error fetching reviews:", error);
-    res.status(500).json({ 
-      success: false, 
-      error: "Failed to fetch user reviews" 
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch user reviews"
     });
   }
 });
@@ -202,7 +211,7 @@ reviewRoutes.get("/", async (req, res) => {
 reviewRoutes.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const review = await prisma.user_review.findUnique({
       where: { id: BigInt(id) },
     });
@@ -214,16 +223,16 @@ reviewRoutes.get("/:id", async (req, res) => {
       });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: normalizeBigInt(review)
     });
-    
+
   } catch (error) {
     console.error("Error fetching review:", error);
-    res.status(500).json({ 
-      success: false, 
-      error: "Failed to fetch review" 
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch review"
     });
   }
 });
