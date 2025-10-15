@@ -7,13 +7,16 @@ import location_types_router from "./routes/locationTypes.js";
 import configRouter from "./routes/configRoutes.js";
 import clean_review_Router from "./routes/CleanerReviewRoutes.js";
 // import reviewRoutes from "./routes/reviewRoutes.js";
-import reviewRoutes from "./routes/reviewRoutes.js"
+import reviewRoutes from "./routes/reviewRoutes.js";
 import loginRoute from "./routes/loginApi.js";
 import clen_assign_router from "./routes/clen_assignRoutes.js";
 import userRouter from "./routes/userRoutes.js";
 import companyRouter from "./routes/companyApiRoutes.js";
 import roleRouter from "./routes/roleRoutes.js";
 import registered_users_router from "./routes/registerUserApi.js";
+import dotenv from "dotenv";
+dotenv.config();
+
 const app = express();
 app.use(express.json());
 
@@ -48,7 +51,6 @@ const allowedOrigins = [
 //     credentials: true,
 //   })
 // );
-
 
 app.use(
   cors({
@@ -87,7 +89,7 @@ app.use("/api", clen_assign_router);
 app.use("/api/cleaner-reviews", clean_review_Router);
 app.use("/api/users", userRouter);
 app.use("/api/companies", companyRouter);
-app.use('/api/role', roleRouter);
+app.use("/api/role", roleRouter);
 
 app.use("/uploads", express.static("uploads"));
 
@@ -99,4 +101,5 @@ app.get("/", (req, res) => {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(process.env.DATABASE_URL);
 });
