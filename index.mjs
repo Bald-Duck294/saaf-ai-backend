@@ -83,7 +83,7 @@ app.use("/api", registered_users_router);
 app.use("/api/locations", getLocationRoutes);
 // app.use("/api", getLocationRoutes);
 app.use("/api", location_types_router);
-app.use("/api", configRouter);
+app.use("/api/configurations", configRouter);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api", clen_assign_router);
 app.use("/api/cleaner-reviews", clean_review_Router);
@@ -93,48 +93,31 @@ app.use("/api/role", roleRouter);
 
 app.use("/uploads", express.static("uploads"));
 
+
+
+app.use((err, req, res, next) => {
+  // Set CORS headers even for errors
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+
+  console.error("Error:", err);
+  res.status(err.status || 500).json({
+    error: err.message || "Internal Server Error"
+  });
+});
+
+
 app.get("/", (req, res) => {
   res.send("Hi there, Your server has successfully started");
 });
 
 // Error handling middleware (add BEFORE app.listen)
-app.use((err, req, res, next) => {
-  // Set CORS headers even for errors
-  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
 
-  console.error("Error:", err);
-  res.status(err.status || 500).json({
-    error: err.message || "Internal Server Error"
-  });
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-// Error handling middleware (add BEFORE app.listen)
-app.use((err, req, res, next) => {
-  // Set CORS headers even for errors
-  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
-
-  console.error("Error:", err);
-  res.status(err.status || 500).json({
-    error: err.message || "Internal Server Error"
-  });
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
 
 // console.log(BigInt('123'));
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(process.env.DATABASE_URL);
