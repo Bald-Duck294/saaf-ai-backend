@@ -112,6 +112,15 @@ function normalizeBigInt(obj) {
   );
 }
 
+
+reviewRoutes.use((req, res, next) => {
+  console.log('🔵 Middleware check:', {
+    method: req.method,
+    path: req.path,
+    contentType: req.headers['content-type']
+  });
+  next();
+});
 // ----------- POST /api/reviews/user-review ------------
 reviewRoutes.post(
   "/user-review",
