@@ -123,13 +123,16 @@ reviewRoutes.use((req, res, next) => {
 });
 // ----------- POST /api/reviews/user-review ------------
 reviewRoutes.post(
+
   "/user-review",
   upload.fields([{ name: 'images', maxCount: 5 }]), // Configure multer for multiple images
   processAndUploadImages([
     { fieldName: 'images', folder: 'user-reviews', maxCount: 5 }
   ]),
   async (req, res) => {
-    console.log("POST request made for user_review");
+    console.log('in review routes post'),
+
+      console.log("POST request made for user_review");
 
     try {
       const body = req.body;
