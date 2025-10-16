@@ -183,6 +183,74 @@ reviewRoutes.post(
 );
 
 // ----------- GET /api/reviews/ --------------
+// reviewRoutes.get("/", async (req, res) => {
+//   try {
+//     const { toilet_id, limit = 50 } = req.query;
+
+//     const whereClause = toilet_id ? { toilet_id: BigInt(toilet_id) } : {};
+
+//     const user_reviews = await prisma.user_review.findMany({
+//       where: whereClause,
+//       orderBy: { created_at: "desc" },
+//       take: parseInt(limit),
+//     });
+
+//     console.log(user_reviews, "user_reviews");
+//     // const serilizedUserReview = user_reviews.map((item)=>  ({
+//     //   ...item ,
+//     //   id: item?.id.toString(),
+//     //   cleaner_user_id : item?.cleaner_user_id.toString(),
+//     //   company_id : item?.company_id.toString ,
+//     //   location_id : item?.location_id.toString()
+//     // }))
+
+//     res.json({
+//       success: true,
+//       data: normalizeBigInt(user_reviews),
+//       count: user_reviews.length
+//     });
+
+//   } catch (error) {
+//     console.error("Error fetching reviews:", error);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch user reviews"
+//     });
+//   }
+// });
+
+// // ----------- GET /api/reviews/:id --------------
+// reviewRoutes.get("/:id", async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const review = await prisma.user_review.findUnique({
+//       where: { id: BigInt(id) },
+//     });
+
+//     if (!review) {
+//       return res.status(404).json({
+//         success: false,
+//         error: "Review not found"
+//       });
+//     }
+
+//     res.json({
+//       success: true,
+//       data: normalizeBigInt(review)
+//     });
+
+//   } catch (error) {
+//     console.error("Error fetching review:", error);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch review"
+//     });
+//   }
+// });
+
+
+// ----------- GET /api/reviews/ --------------
 reviewRoutes.get("/", async (req, res) => {
   try {
     const { toilet_id, limit = 50 } = req.query;
@@ -195,19 +263,41 @@ reviewRoutes.get("/", async (req, res) => {
       take: parseInt(limit),
     });
 
-    console.log(user_reviews, "user_reviews");
-    // const serilizedUserReview = user_reviews.map((item)=>  ({
-    //   ...item ,
-    //   id: item?.id.toString(),
-    //   cleaner_user_id : item?.cleaner_user_id.toString(),
-    //   company_id : item?.company_id.toString ,
-    //   location_id : item?.location_id.toString()
-    // }))
+    console.log(`Found ${user_reviews.length} reviews`);
+
+    // Fetch locations for all reviews with toilet_ids
+    const toiletIds = user_reviews
+      .map(review => review.toilet_id)
+      .filter(id => id !== null);
+
+    const locations = await prisma.locations.findMany({
+      where: {
+        id: { in: toiletIds }
+      }
+    });
+
+    // Create a map for quick lookup
+    const locationMap = new Map(
+      locations.map(loc => [loc.id.toString(), normalizeBigInt(loc)])
+    );
+
+    // Attach location to each review
+    const reviewsWithLocations = user_reviews.map(review => {
+      const normalizedReview = normalizeBigInt(review);
+      const locationData = review.toilet_id 
+        ? locationMap.get(review.toilet_id.toString()) 
+        : null;
+
+      return {
+        ...normalizedReview,
+        location: locationData || null
+      };
+    });
 
     res.json({
       success: true,
-      data: normalizeBigInt(user_reviews),
-      count: user_reviews.length
+      data: reviewsWithLocations,
+      count: reviewsWithLocations.length
     });
 
   } catch (error) {
@@ -218,6 +308,7 @@ reviewRoutes.get("/", async (req, res) => {
     });
   }
 });
+
 
 // ----------- GET /api/reviews/:id --------------
 reviewRoutes.get("/:id", async (req, res) => {
@@ -235,9 +326,24 @@ reviewRoutes.get("/:id", async (req, res) => {
       });
     }
 
+    // Fetch location if toilet_id exists
+    let location = null;
+    if (review.toilet_id) {
+      location = await prisma.locations.findUnique({
+        where: { id: review.toilet_id }
+      });
+    }
+
+    // Normalize and attach location
+    const normalizedReview = normalizeBigInt(review);
+    const normalizedLocation = location ? normalizeBigInt(location) : null;
+
     res.json({
       success: true,
-      data: normalizeBigInt(review)
+      data: {
+        ...normalizedReview,
+        location: normalizedLocation
+      }
     });
 
   } catch (error) {
@@ -248,5 +354,6 @@ reviewRoutes.get("/:id", async (req, res) => {
     });
   }
 });
+
 
 export default reviewRoutes;
