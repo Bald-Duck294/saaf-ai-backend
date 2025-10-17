@@ -67,7 +67,7 @@ model locations {
   lang_preference     String?                  @db.VarChar(255)
   images              String[]
   geom                Unsupported("geometry")?
-  deletedAt           DateTime? // Add this
+  deletedAt           DateTime?
   assigned_users      LocationAssignment[]
   cleaner_assignments cleaner_assignments[]
   hygiene_scores      hygiene_scores[]
@@ -75,8 +75,8 @@ model locations {
   locations           locations?               @relation("locationsTolocations", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_locations     locations[]              @relation("locationsTolocations")
   location_types      location_types?          @relation(fields: [type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  // ✅ Add cleaner review relationship
-  cleaner_reviews     cleaner_review[]         @relation("LocationReviews")
+
+  cleaner_reviews cleaner_review[] @relation("LocationReviews")
 
   @@index([geom], map: "idx_locations_geom", type: Gist)
 }
@@ -90,6 +90,7 @@ model location_types {
   created_at           DateTime?        @default(now()) @db.Timestamp(6)
   updated_at           DateTime?        @default(now()) @db.Timestamp(6)
   is_toilet            Boolean?
+  deletedAt            DateTime?
   companies            companies?       @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   location_types       location_types?  @relation("location_typesTolocation_types", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_location_types location_types[] @relation("location_typesTolocation_types")
@@ -138,7 +139,7 @@ model users {
   age        Int?
   birthdate  DateTime? @db.Date
   role_id    Int?
-  deletedAt  DateTime? // Add this
+  deletedAt  DateTime?
 
   location_assignments              LocationAssignment[]
   activity_logs                     activity_logs[]
@@ -180,7 +181,6 @@ model cleaner_review {
   status          String    @default("ongoing")
   company_id      BigInt?
 
-  // ✅ Add foreign key relationships
   cleaner_user users?     @relation("CleanerReviews", fields: [cleaner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   location     locations? @relation("LocationReviews", fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   company      companies? @relation("CompanyReviews", fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
