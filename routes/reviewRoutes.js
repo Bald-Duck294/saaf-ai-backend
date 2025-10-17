@@ -151,7 +151,7 @@ reviewRoutes.post(
       // ✅ Rating conversion logic (can be easily commented out)
       // Frontend sends rating out of 5, backend stores out of 10
       const frontendRating = parseFloat(body.rating);
-      const backendRating = frontendRating * 2; // Convert 5-scale to 10-scale
+      const backendRating = frontendRating / 2; // Convert 5-scale to 10-scale
 
       // ✅ To revert to original behavior, comment the line above and uncomment below:
       // const backendRating = frontendRating; // No conversion
