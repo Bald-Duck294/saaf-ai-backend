@@ -148,13 +148,21 @@ reviewRoutes.post(
       const lat = parseFloat(body.latitude);
       const long = parseFloat(body.longitude);
 
+      // ✅ Rating conversion logic (can be easily commented out)
+      // Frontend sends rating out of 5, backend stores out of 10
+      const frontendRating = parseFloat(body.rating);
+      const backendRating = frontendRating * 2; // Convert 5-scale to 10-scale
+
+      // ✅ To revert to original behavior, comment the line above and uncomment below:
+      // const backendRating = frontendRating; // No conversion
+
       // Create the review with Cloudinary image URLs
       const review = await prisma.user_review.create({
         data: {
           name: body.name,
           email: body.email,
           phone: body.phone,
-          rating: parseFloat(body.rating),
+          rating: backendRating, // ✅ Use converted rating,
           reason_ids: reasonIds,
           latitude: lat,
           longitude: long,
@@ -284,8 +292,8 @@ reviewRoutes.get("/", async (req, res) => {
     // Attach location to each review
     const reviewsWithLocations = user_reviews.map(review => {
       const normalizedReview = normalizeBigInt(review);
-      const locationData = review.toilet_id 
-        ? locationMap.get(review.toilet_id.toString()) 
+      const locationData = review.toilet_id
+        ? locationMap.get(review.toilet_id.toString())
         : null;
 
       return {
