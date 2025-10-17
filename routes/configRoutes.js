@@ -19,12 +19,12 @@ import {
   getAllConfigurations,
   getConfigurationById,
   getConfigurationByName,
-  createConfiguration,
-  updateConfiguration,
-  deleteConfiguration,
-  toggleConfigurationStatus,
-  duplicateConfiguration,
-  getConfigurationTemplates
+  // createConfiguration,
+  // updateConfiguration,
+  // deleteConfiguration,
+  // toggleConfigurationStatus,
+  // duplicateConfiguration,
+  // getConfigurationTemplates
 } from "../controller/configController.js"
 
 const router = express.Router();
