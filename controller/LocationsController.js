@@ -767,6 +767,137 @@ export const deleteLocationImage = async (req, res) => {
 
 
 // ✅ Delete location by ID
+// export const deleteLocationById = async (req, res) => {
+//   try {
+//     const locationId = req.params.id;
+//     const companyId = req.query.companyId;
+
+//     console.log('Deleting location:', locationId, 'for company:', companyId);
+
+//     // Build where clause for security
+//     const whereClause = { id: Number(locationId) };
+
+//     // Add company_id filter if provided for additional security
+//     if (companyId) {
+//       whereClause.company_id = Number(companyId);
+//     }
+
+//     // Check if location exists and belongs to company
+//     const existingLocation = await prisma.locations.findUnique({
+//       where: whereClause,
+//       include: {
+//         // Check for dependencies
+//         hygiene_scores: { select: { id: true } },
+//         cleaner_assignments: { select: { id: true } },
+//         other_locations: { select: { id: true } } // Check for child locations
+//       }
+//     });
+
+//     if (!existingLocation) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Location not found or access denied"
+//       });
+//     }
+
+//     // Check for dependencies that might prevent deletion
+//     const dependencies = [];
+//     if (existingLocation.hygiene_scores.length > 0) {
+//       dependencies.push(`${existingLocation.hygiene_scores.length} hygiene score(s)`);
+//     }
+//     if (existingLocation.cleaner_assignments.length > 0) {
+//       dependencies.push(`${existingLocation.cleaner_assignments.length} cleaner assignment(s)`);
+//     }
+//     if (existingLocation.other_locations.length > 0) {
+//       dependencies.push(`${existingLocation.other_locations.length} child location(s)`);
+//     }
+
+//     // Option 1: Soft delete (recommended) - just mark as deleted
+//     const softDelete = req.query.soft === 'true';
+
+//     if (softDelete || dependencies.length > 0) {
+//       // For locations with dependencies, do soft delete by updating metadata
+//       const updatedLocation = await prisma.locations.update({
+//         where: { id: Number(locationId) },
+//         data: {
+//           metadata: {
+//             ...existingLocation.metadata,
+//             deleted_at: new Date().toISOString(),
+//             deleted_by: req.user?.id || null, // If you have user context
+//             delete_reason: dependencies.length > 0 ?
+//               `Has dependencies: ${dependencies.join(', ')}` :
+//               'Soft delete requested'
+//           }
+//         }
+//       });
+
+//       return res.json({
+//         success: true,
+//         message: dependencies.length > 0 ?
+//           `Location marked as deleted (has dependencies: ${dependencies.join(', ')})` :
+//           "Location deleted successfully",
+//         data: {
+//           id: updatedLocation.id.toString(),
+//           deleted: true,
+//           soft_delete: true,
+//           dependencies: dependencies
+//         }
+//       });
+//     }
+
+//     // Option 2: Hard delete (cascade delete dependencies)
+//     // Delete in order: hygiene_scores -> cleaner_assignments -> location
+
+//     // Delete hygiene scores
+//     if (existingLocation.hygiene_scores.length > 0) {
+//       await prisma.hygiene_scores.deleteMany({
+//         where: { location_id: Number(locationId) }
+//       });
+//     }
+
+//     // Delete cleaner assignments
+//     if (existingLocation.cleaner_assignments.length > 0) {
+//       await prisma.cleaner_assignments.deleteMany({
+//         where: { location_id: Number(locationId) }
+//       });
+//     }
+
+//     // Update child locations to remove parent reference
+//     if (existingLocation.other_locations.length > 0) {
+//       await prisma.locations.updateMany({
+//         where: { parent_id: Number(locationId) },
+//         data: { parent_id: null }
+//       });
+//     }
+
+//     // Finally delete the location
+//     await prisma.locations.delete({
+//       where: { id: Number(locationId) }
+//     });
+
+//     res.json({
+//       success: true,
+//       message: "Location and all related data deleted successfully",
+//       data: {
+//         id: locationId,
+//         deleted: true,
+//         hard_delete: true,
+//         cleaned_dependencies: dependencies
+//       }
+//     });
+
+//   } catch (err) {
+//     console.error("Error deleting location:", err);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to delete location",
+//       details: err.message
+//     });
+//   }
+// };
+
+
+
 export const deleteLocationById = async (req, res) => {
   try {
     const locationId = req.params.id;
@@ -784,13 +915,7 @@ export const deleteLocationById = async (req, res) => {
 
     // Check if location exists and belongs to company
     const existingLocation = await prisma.locations.findUnique({
-      where: whereClause,
-      include: {
-        // Check for dependencies
-        hygiene_scores: { select: { id: true } },
-        cleaner_assignments: { select: { id: true } },
-        other_locations: { select: { id: true } } // Check for child locations
-      }
+      where: whereClause
     });
 
     if (!existingLocation) {
@@ -800,89 +925,17 @@ export const deleteLocationById = async (req, res) => {
       });
     }
 
-    // Check for dependencies that might prevent deletion
-    const dependencies = [];
-    if (existingLocation.hygiene_scores.length > 0) {
-      dependencies.push(`${existingLocation.hygiene_scores.length} hygiene score(s)`);
-    }
-    if (existingLocation.cleaner_assignments.length > 0) {
-      dependencies.push(`${existingLocation.cleaner_assignments.length} cleaner assignment(s)`);
-    }
-    if (existingLocation.other_locations.length > 0) {
-      dependencies.push(`${existingLocation.other_locations.length} child location(s)`);
-    }
-
-    // Option 1: Soft delete (recommended) - just mark as deleted
-    const softDelete = req.query.soft === 'true';
-
-    if (softDelete || dependencies.length > 0) {
-      // For locations with dependencies, do soft delete by updating metadata
-      const updatedLocation = await prisma.locations.update({
-        where: { id: Number(locationId) },
-        data: {
-          metadata: {
-            ...existingLocation.metadata,
-            deleted_at: new Date().toISOString(),
-            deleted_by: req.user?.id || null, // If you have user context
-            delete_reason: dependencies.length > 0 ?
-              `Has dependencies: ${dependencies.join(', ')}` :
-              'Soft delete requested'
-          }
-        }
-      });
-
-      return res.json({
-        success: true,
-        message: dependencies.length > 0 ?
-          `Location marked as deleted (has dependencies: ${dependencies.join(', ')})` :
-          "Location deleted successfully",
-        data: {
-          id: updatedLocation.id.toString(),
-          deleted: true,
-          soft_delete: true,
-          dependencies: dependencies
-        }
-      });
-    }
-
-    // Option 2: Hard delete (cascade delete dependencies)
-    // Delete in order: hygiene_scores -> cleaner_assignments -> location
-
-    // Delete hygiene scores
-    if (existingLocation.hygiene_scores.length > 0) {
-      await prisma.hygiene_scores.deleteMany({
-        where: { location_id: Number(locationId) }
-      });
-    }
-
-    // Delete cleaner assignments
-    if (existingLocation.cleaner_assignments.length > 0) {
-      await prisma.cleaner_assignments.deleteMany({
-        where: { location_id: Number(locationId) }
-      });
-    }
-
-    // Update child locations to remove parent reference
-    if (existingLocation.other_locations.length > 0) {
-      await prisma.locations.updateMany({
-        where: { parent_id: Number(locationId) },
-        data: { parent_id: null }
-      });
-    }
-
-    // Finally delete the location
+    // Simply call delete - middleware handles soft delete automatically
     await prisma.locations.delete({
       where: { id: Number(locationId) }
     });
 
     res.json({
       success: true,
-      message: "Location and all related data deleted successfully",
+      message: "Location deleted successfully",
       data: {
         id: locationId,
-        deleted: true,
-        hard_delete: true,
-        cleaned_dependencies: dependencies
+        deleted: true
       }
     });
 

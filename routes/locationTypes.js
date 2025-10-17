@@ -14,6 +14,7 @@ import {
   updateLocationType,
   markAsToilet,
   getLocationTypeTree,
+  deleteLocationType,
 } from "../controller/locationTypesController.js";
 
 const location_types_router = express.Router();
@@ -23,5 +24,6 @@ location_types_router.get("/location-types", getAllLocationTypes);
 location_types_router.post("/location-types", createLocationType);
 location_types_router.patch("/location-types/:id", updateLocationType);
 location_types_router.patch("/location-types/:id/mark-toilet", markAsToilet);
+location_types_router.delete("/location-types/delete/:id", deleteLocationType);
 
 export default location_types_router;

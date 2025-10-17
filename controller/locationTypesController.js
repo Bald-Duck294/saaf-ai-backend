@@ -222,3 +222,62 @@ export const getLocationTypeTree = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch location type tree" });
   }
 };
+
+
+// DELETE /api/location-types/:id
+export const deleteLocationType = async (req, res) => {
+  const { id } = req.params;
+  const { companyId } = req.query;
+
+  try {
+    // Check if location type exists
+    const existingType = await prisma.location_types.findUnique({
+      where: { id: BigInt(id) },
+      include: {
+        other_location_types: true, // Check for children
+        locations: true, // Check for locations using this type
+      }
+    });
+
+    if (!existingType) {
+      return res.status(404).json({
+        success: false,
+        message: "Location type not found"
+      });
+    }
+
+    // Check for children
+    if (existingType.other_location_types.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete location type with child types. Delete children first."
+      });
+    }
+
+    // Check for locations using this type
+    if (existingType.locations.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete location type. ${existingType.locations.length} location(s) are using this type.`
+      });
+    }
+
+    // Delete the location type (soft delete via middleware)
+    await prisma.location_types.delete({
+      where: { id: BigInt(id) }
+    });
+
+    res.json({
+      success: true,
+      message: "Location type deleted successfully"
+    });
+
+  } catch (err) {
+    console.error("Error deleting location type:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete location type",
+      error: err.message
+    });
+  }
+};
