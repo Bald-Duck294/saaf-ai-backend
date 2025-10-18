@@ -281,7 +281,7 @@ reviewRoutes.post(
           name: body.name,
           email: body.email,
           phone: body.phone,
-          rating: backendRating,
+          // rating: backendRating,
           rating: frontendRating,
           reason_ids: reasonIds,
           latitude: lat,
