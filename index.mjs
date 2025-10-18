@@ -119,6 +119,6 @@ app.get("/", (req, res) => {
 // console.log(BigInt('123'));
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`----------/////Server running on port ${PORT}\\\\\\\------------`);
   console.log(process.env.DATABASE_URL);
 });

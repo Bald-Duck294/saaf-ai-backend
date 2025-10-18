@@ -947,8 +947,23 @@ export async function completeCleanerReview(req, res) {
   }
 }
 
+
+
+
+
 // ✅ Separate function for AI processing
 async function processHygieneScoring(review, afterPhotos) {
+  // ✅ Helper function to convert 0-100 scale to 1-10 scale
+  const convertScoreTo10Scale = (score) => {
+    // If score is already between 1-10, return as-is
+    if (score <= 10) {
+      return score;
+    }
+    // Convert 0-100 to 1-10
+    return Math.round(score) / 10;
+    // 85 → 8.5, 92 → 9.2, 100 → 10.0
+  };
+
   // Helper function to generate fake scores
   const generateFakeScores = (imageUrls) => {
     console.log(`Generating fake scores for ${imageUrls.length} images...`);
@@ -975,10 +990,15 @@ async function processHygieneScoring(review, afterPhotos) {
       const scoreItem = scores[i];
 
       try {
+        // ✅ Convert AI score from 0-100 to 1-10 scale
+        const normalizedScore = convertScoreTo10Scale(Number(scoreItem.score) || 70);
+
+        console.log(`📊 Score ${i + 1}: Raw=${scoreItem.score}, Normalized=${normalizedScore}`);
+
         const savedScore = await prisma.hygiene_scores.create({
           data: {
             location_id: reviewData.location_id,
-            score: Number(scoreItem.score) || 7, // Ensure it's a number
+            score: normalizedScore, // ✅ Now saves 8.5 instead of 85
             details: scoreItem.metadata || {},
             image_url: afterPhotos[i] || scoreItem.image_url || null,
             inspected_at: new Date(),
@@ -987,7 +1007,7 @@ async function processHygieneScoring(review, afterPhotos) {
         });
 
         savedScores.push(savedScore);
-        console.log(`✅ Score ${i + 1} saved successfully:`, scoreItem.score);
+        console.log(`✅ Score ${i + 1} saved successfully: ${normalizedScore}/10`);
 
       } catch (dbError) {
         console.error(`Failed to save score ${i + 1}:`, dbError.message);
@@ -1018,12 +1038,14 @@ async function processHygieneScoring(review, afterPhotos) {
       };
 
       const aiResponse = await axios.post(
-        "https://pugarch-c-score-369586418873.europe-west1.run.app/predict",
+        "https://pugarch-c-score-776087882401.europe-west1.run.app/predict",
         urlPayload,
         {
           headers: {
             'Content-Type': 'application/json',
-            'User-Agent': 'CleanerReview/1.0'
+            'User-Agent': 'CleanerReview/1.0',
+            "Authorization": "Bearer pugarch123"
+
           },
           timeout: 15000
         }
@@ -1033,6 +1055,7 @@ async function processHygieneScoring(review, afterPhotos) {
         scoreData = aiResponse.data;
         processingMethod = 'URL';
         console.log('✅ AI scoring successful with URLs');
+        console.log('📊 Raw AI scores:', scoreData.map(s => s.score));
       } else {
         throw new Error('Invalid AI response format');
       }
@@ -1093,6 +1116,7 @@ async function processHygieneScoring(review, afterPhotos) {
             scoreData = aiResponse.data;
             processingMethod = 'File Upload';
             console.log('✅ AI scoring successful with file upload');
+            console.log('📊 Raw AI scores:', scoreData.map(s => s.score));
           } else {
             throw new Error('Invalid AI response format');
           }
@@ -1136,3 +1160,195 @@ async function processHygieneScoring(review, afterPhotos) {
     }
   }
 }
+
+
+
+// // ✅ Separate function for AI processing
+// async function processHygieneScoring(review, afterPhotos) {
+//   // Helper function to generate fake scores
+//   const generateFakeScores = (imageUrls) => {
+//     console.log(`Generating fake scores for ${imageUrls.length} images...`);
+//     return imageUrls.map((url, index) => ({
+//       score: Math.floor(Math.random() * (10 - 6 + 1)) + 6, // Random between 6-10
+//       metadata: {
+//         cleanliness: Math.floor(Math.random() * (10 - 6 + 1)) + 6,
+//         organization: Math.floor(Math.random() * (10 - 6 + 1)) + 6,
+//         overall_hygiene: Math.floor(Math.random() * (10 - 6 + 1)) + 6,
+//         demo_mode: true,
+//         generated_at: new Date().toISOString(),
+//         image_index: index + 1
+//       },
+//       filename: `after_photo_${index + 1}`,
+//       image_url: url
+//     }));
+//   };
+
+//   // Helper function to save scores to database
+//   const saveScoresToDatabase = async (scores, reviewData) => {
+//     const savedScores = [];
+
+//     for (let i = 0; i < scores.length; i++) {
+//       const scoreItem = scores[i];
+
+//       try {
+//         const savedScore = await prisma.hygiene_scores.create({
+//           data: {
+//             location_id: reviewData.location_id,
+//             score: Number(scoreItem.score) || 7, // Ensure it's a number
+//             details: scoreItem.metadata || {},
+//             image_url: afterPhotos[i] || scoreItem.image_url || null,
+//             inspected_at: new Date(),
+//             created_by: reviewData.cleaner_user_id,
+//           },
+//         });
+
+//         savedScores.push(savedScore);
+//         console.log(`✅ Score ${i + 1} saved successfully:`, scoreItem.score);
+
+//       } catch (dbError) {
+//         console.error(`Failed to save score ${i + 1}:`, dbError.message);
+//       }
+//     }
+
+//     return savedScores;
+//   };
+
+//   try {
+//     console.log('🚀 AI scoring started for review:', review.id);
+//     console.log('📸 Processing', afterPhotos.length, 'after photos');
+
+//     if (afterPhotos.length === 0) {
+//       console.log('⚠️ No after photos to process');
+//       return;
+//     }
+
+//     let scoreData = [];
+//     let processingMethod = 'unknown';
+
+//     try {
+//       // Method 1: Try sending URLs to AI service
+//       console.log('🔄 Method 1: Sending Cloudinary URLs to AI...');
+
+//       const urlPayload = {
+//         images: afterPhotos
+//       };
+
+//       const aiResponse = await axios.post(
+//         "https://pugarch-c-score-369586418873.europe-west1.run.app/predict",
+//         urlPayload,
+//         {
+//           headers: {
+//             'Content-Type': 'application/json',
+//             'User-Agent': 'CleanerReview/1.0'
+//           },
+//           timeout: 15000
+//         }
+//       );
+
+//       if (aiResponse.data && Array.isArray(aiResponse.data)) {
+//         scoreData = aiResponse.data;
+//         processingMethod = 'URL';
+//         console.log('✅ AI scoring successful with URLs');
+//       } else {
+//         throw new Error('Invalid AI response format');
+//       }
+
+//     } catch (urlError) {
+//       console.log('❌ Method 1 failed:', urlError.message);
+
+//       try {
+//         // Method 2: Download images and send as files
+//         console.log('🔄 Method 2: Downloading images and sending as files...');
+
+//         const formData = new FormData();
+//         const downloadPromises = [];
+
+//         // Download all images concurrently
+//         for (let i = 0; i < afterPhotos.length; i++) {
+//           const imageUrl = afterPhotos[i];
+
+//           const downloadPromise = axios({
+//             url: imageUrl,
+//             method: 'GET',
+//             responseType: 'stream',
+//             timeout: 10000,
+//             headers: {
+//               'User-Agent': 'CleanerReview-ImageDownloader/1.0'
+//             }
+//           }).then(response => {
+//             formData.append('images', response.data, `image_${i}.jpg`);
+//             return true;
+//           }).catch(err => {
+//             console.error(`Failed to download image ${i}:`, err.message);
+//             return false;
+//           });
+
+//           downloadPromises.push(downloadPromise);
+//         }
+
+//         // Wait for all downloads
+//         const downloadResults = await Promise.all(downloadPromises);
+//         const successfulDownloads = downloadResults.filter(result => result === true).length;
+
+//         console.log(`📥 Downloaded ${successfulDownloads}/${afterPhotos.length} images`);
+
+//         if (successfulDownloads > 0) {
+//           const aiResponse = await axios.post(
+//             "https://pugarch-c-score-369586418873.europe-west1.run.app/predict",
+//             formData,
+//             {
+//               headers: {
+//                 ...formData.getHeaders(),
+//                 'User-Agent': 'CleanerReview-AIService/1.0'
+//               },
+//               timeout: 30000 // Longer timeout for file upload
+//             }
+//           );
+
+//           if (aiResponse.data && Array.isArray(aiResponse.data)) {
+//             scoreData = aiResponse.data;
+//             processingMethod = 'File Upload';
+//             console.log('✅ AI scoring successful with file upload');
+//           } else {
+//             throw new Error('Invalid AI response format');
+//           }
+//         } else {
+//           throw new Error('Failed to download any images');
+//         }
+
+//       } catch (downloadError) {
+//         console.log('❌ Method 2 failed:', downloadError.message);
+//         throw downloadError; // Will trigger fake score generation
+//       }
+//     }
+
+//     // Process real AI results
+//     console.log(`🎯 Processing ${scoreData.length} AI scores via ${processingMethod}`);
+//     await saveScoresToDatabase(scoreData, review);
+//     console.log('✅ Real AI hygiene scores saved for review:', review.id);
+
+//   } catch (aiError) {
+//     // ✅ Fallback: Generate and save fake scores
+//     console.error('🔴 AI Scoring completely failed:', {
+//       message: aiError.message,
+//       status: aiError.response?.status,
+//       statusText: aiError.response?.statusText
+//     });
+
+//     try {
+//       console.log('🎲 Generating fake scores as fallback...');
+//       const fakeScores = generateFakeScores(afterPhotos);
+
+//       console.log('💾 Saving fake scores to database...');
+//       await saveScoresToDatabase(fakeScores, review);
+
+//       console.log('✅ Fake hygiene scores saved successfully for demo purposes');
+
+//     } catch (fakeError) {
+//       console.error('🔴 Critical: Failed to save fake scores:', {
+//         message: fakeError.message,
+//         stack: fakeError.stack
+//       });
+//     }
+//   }
+// }

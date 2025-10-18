@@ -161,6 +161,9 @@ model configurations {
   notes       String?
   created_at  DateTime @default(now()) @db.Timestamptz(6)
   updated_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  //  this constraint to allow same name for different companies
+  // @@unique([name, company_id])
 }
 
 model cleaner_review {
@@ -180,7 +183,7 @@ model cleaner_review {
   after_photo     String[]
   status          String    @default("ongoing")
   company_id      BigInt?
-
+  score         Float?
   cleaner_user users?     @relation("CleanerReviews", fields: [cleaner_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   location     locations? @relation("LocationReviews", fields: [location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   company      companies? @relation("CompanyReviews", fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -193,6 +196,8 @@ model user_review {
   email       String?   @db.VarChar(100)
   phone       String?   @db.VarChar(20)
   rating      Float?
+  ai_score    Float?
+  company_id  BigInt?
   description String?
   reason_ids  Int[]
   images      String[]
