@@ -153,6 +153,10 @@ export const getAllToilets = async (req, res) => {
 // };
 
 
+
+// Add this search endpoint to your locations controller
+
+
 export const getToiletById = async (req, res) => {
   console.log('get single toilet')
   try {
@@ -160,6 +164,10 @@ export const getToiletById = async (req, res) => {
     const companyId = req.query.companyId;
 
     console.log(req.params, companyId, "ids");
+
+    // ✅ CONFIGURATION FLAG - Change this to toggle rating calculation
+    const INCLUDE_USER_REVIEWS_IN_RATING = false; // Set to true to include user reviews
+
     // Build where clause for security
     const whereClause = { id: Number(locId) };
 
@@ -173,7 +181,6 @@ export const getToiletById = async (req, res) => {
       include: {
         hygiene_scores: {
           orderBy: { inspected_at: "desc" },
-          take: 1,
           select: {
             id: true,
             score: true,
@@ -181,11 +188,10 @@ export const getToiletById = async (req, res) => {
             created_by: true
           },
         },
-        // ✅ Include cleaner assignments with user details
         cleaner_assignments: {
           where: {
             status: {
-              in: ["assigned", "active", "ongoing"] // Active assignments only
+              in: ["assigned", "active", "ongoing"]
             }
           },
           include: {
@@ -224,53 +230,57 @@ export const getToiletById = async (req, res) => {
       ...item,
       toilet_id: item.toilet_id?.toString() || null,
       id: item.id?.toString() || null,
-      // Handle other BigInt fields in reviews if any
     }));
 
     console.log(intReviews, "int review")
-    const userRatings = reviews.map((r) => r.rating).filter(Boolean);
-    const hygieneScore = location.hygiene_scores[0]?.score ?? null;
 
-    const hygieneRatingMapped =
-      hygieneScore !== null
-        ? hygieneScore >= 100
-          ? 5
-          : hygieneScore >= 80
-            ? 4
-            : hygieneScore >= 60
-              ? 3
-              : hygieneScore >= 40
-                ? 2
-                : 1
-        : null;
+    // ✅ UPDATED RATING CALCULATION - Same logic as getAllToilets
+    const hygieneScores = location.hygiene_scores.map(hs => Number(hs.score));
+    const ratingCount = hygieneScores.length;
 
-    const allRatings = [
-      ...userRatings,
-      ...(hygieneRatingMapped !== null ? [hygieneRatingMapped] : []),
-    ];
-    const ratingCount = allRatings.length;
-    const averageRating =
-      ratingCount > 0
-        ? allRatings.reduce((sum, r) => sum + r, 0) / ratingCount
-        : null;
+    let averageRating = null;
+
+    if (INCLUDE_USER_REVIEWS_IN_RATING) {
+      // 📊 OPTION 1: Include both hygiene scores + user reviews
+      const userRatings = reviews.map((r) => r.rating).filter(Boolean);
+      const allRatings = [...hygieneScores, ...userRatings];
+      const totalCount = allRatings.length;
+
+      if (totalCount > 0) {
+        const sumOfScores = allRatings.reduce((sum, score) => sum + score, 0);
+        averageRating = parseFloat((sumOfScores / totalCount).toFixed(2));
+      }
+
+      console.log('Rating calculation: Including user reviews + hygiene scores');
+      console.log('Hygiene scores:', hygieneScores);
+      console.log('User ratings:', userRatings);
+      console.log('Combined average:', averageRating);
+    } else {
+      // 📊 OPTION 2: Hygiene scores only
+      if (ratingCount > 0) {
+        const sumOfScores = hygieneScores.reduce((sum, score) => sum + score, 0);
+        averageRating = parseFloat((sumOfScores / ratingCount).toFixed(2));
+      }
+
+      console.log('Rating calculation: Hygiene scores only');
+      console.log('Hygiene scores:', hygieneScores);
+      console.log('Average rating:', averageRating);
+    }
 
     // ✅ Serialize all BigInt fields to strings
     const result = {
       ...location,
-      // Convert main location BigInt fields
       id: location.id?.toString() || null,
       parent_id: location.parent_id?.toString() || null,
       company_id: location.company_id?.toString() || null,
       type_id: location.type_id?.toString() || null,
 
-      // Handle hygiene_scores BigInt fields
       hygiene_scores: location.hygiene_scores.map(score => ({
         ...score,
         id: score.id?.toString() || null,
         created_by: score.created_by?.toString() || null,
       })),
 
-      // Handle cleaner_assignments BigInt fields
       cleaner_assignments: location.cleaner_assignments.map(assignment => ({
         ...assignment,
         id: assignment.id?.toString() || null,
@@ -280,26 +290,27 @@ export const getToiletById = async (req, res) => {
         location_id: assignment.location_id?.toString() || null,
         supervisor_id: assignment.supervisor_id?.toString() || null,
 
-        // Handle nested cleaner_user BigInt fields
         cleaner_user: assignment.cleaner_user ? {
           ...assignment.cleaner_user,
           id: assignment.cleaner_user.id?.toString() || null,
         } : null,
 
-        // Handle nested supervisor BigInt fields
         supervisor: assignment.supervisor ? {
           ...assignment.supervisor,
           id: assignment.supervisor.id?.toString() || null,
         } : null,
       })),
 
-      // Include other fields
       images: location.images || [],
       averageRating,
       ratingCount,
       ReviewData: intReviews,
 
-      // ✅ Create assignedCleaners with proper serialization
+      ratingSource: INCLUDE_USER_REVIEWS_IN_RATING
+        ? 'hygiene_and_user_reviews'
+        : 'hygiene_only',
+      ratingScale: '1-10',
+
       assignedCleaners: location.cleaner_assignments.map(assignment => ({
         id: assignment.id?.toString() || null,
         name: assignment.name,
@@ -333,10 +344,6 @@ export const getToiletById = async (req, res) => {
     });
   }
 };
-
-
-
-// Add this search endpoint to your locations controller
 
 export const getSearchToilet = async (req, res) => {
   try {
