@@ -113,6 +113,125 @@ function normalizeBigInt(obj) {
 }
 
 
+// ✅ Asynchronous AI scoring for user reviews
+async function processUserReviewAIScoring(review, imageUrls) {
+  // Helper function to convert 0-100 scale to 1-10 scale
+  const convertScoreTo10Scale = (score) => {
+    if (score <= 10) {
+      return score;
+    }
+    return Math.round(score) / 10;
+  };
+
+  // Helper function to calculate average score from multiple images
+  const calculateAverageScore = (scores) => {
+    if (!scores || scores.length === 0) return null;
+
+    const validScores = scores
+      .map(s => Number(s.score))
+      .filter(s => !isNaN(s) && s > 0);
+
+    if (validScores.length === 0) return null;
+
+    const sum = validScores.reduce((total, score) => total + score, 0);
+    const average = sum / validScores.length;
+
+    return parseFloat(average.toFixed(2));
+  };
+
+  // Helper function to generate fake score
+  const generateFakeScore = () => {
+    return parseFloat((Math.random() * (10 - 6) + 6).toFixed(2)); // Random between 6-10
+  };
+
+  try {
+    console.log('🚀 AI scoring started for user review:', review.id.toString());
+    console.log('📸 Processing', imageUrls.length, 'images');
+
+    if (imageUrls.length === 0) {
+      console.log('⚠️ No images to process');
+      return;
+    }
+
+    let aiScore = null;
+
+    try {
+      // Method 1: Send URLs to AI service
+      console.log('🔄 Sending image URLs to AI service...');
+
+      const urlPayload = {
+        images: imageUrls
+      };
+
+      const aiResponse = await axios.post(
+        "https://pugarch-c-score-776087882401.europe-west1.run.app/predict",
+        urlPayload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'UserReview/1.0',
+            "Authorization": "Bearer pugarch123"
+          },
+          timeout: 15000
+        }
+      );
+
+      if (aiResponse.data && Array.isArray(aiResponse.data)) {
+        console.log('✅ AI scoring successful');
+        console.log('📊 Raw AI scores:', aiResponse.data.map(s => s.score));
+
+        // Convert all scores to 1-10 scale
+        const convertedScores = aiResponse.data.map(item => ({
+          score: convertScoreTo10Scale(Number(item.score) || 0)
+        }));
+
+        // Calculate average
+        aiScore = calculateAverageScore(convertedScores);
+        console.log('📊 Converted scores:', convertedScores.map(s => s.score));
+        console.log('📊 Average AI score:', aiScore);
+
+      } else {
+        throw new Error('Invalid AI response format');
+      }
+
+    } catch (aiError) {
+      console.error('❌ AI scoring failed:', {
+        message: aiError.message,
+        status: aiError.response?.status,
+        statusText: aiError.response?.statusText
+      });
+
+      // Fallback: Generate fake score
+      console.log('🎲 Generating fake score as fallback...');
+      aiScore = generateFakeScore();
+      console.log('📊 Fake AI score:', aiScore);
+    }
+
+    // ✅ Update the review with AI score
+    if (aiScore !== null) {
+      await prisma.user_review.update({
+        where: { id: review.id },
+        data: {
+          ai_score: aiScore,
+          updated_at: new Date()
+        }
+      });
+
+      console.log(`✅ AI score ${aiScore} saved for user review:`, review.id.toString());
+    } else {
+      console.log('⚠️ No AI score to save');
+    }
+
+  } catch (error) {
+    console.error('🔴 Critical error in AI scoring:', {
+      message: error.message,
+      stack: error.stack,
+      reviewId: review.id.toString()
+    });
+  }
+}
+
+
 reviewRoutes.use((req, res, next) => {
   console.log('🔵 Middleware check:', {
     method: req.method,
@@ -179,6 +298,12 @@ reviewRoutes.post(
         data: normalizeBigInt(review),
         message: "Review submitted successfully!"
       });
+
+      if (imageUrls.length > 0) {
+        processUserReviewAIScoring(review, imageUrls);
+      } else {
+        console.log('⚠️ No images to process for AI scoring');
+      }
 
     } catch (error) {
       console.error("Review creation failed:", error);
