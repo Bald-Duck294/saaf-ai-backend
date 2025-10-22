@@ -970,6 +970,15 @@ async function processHygieneScoring(review, afterPhotos) {
     return Math.round(score) / 10;
   };
 
+  // ✅ Helper: Calculate average score - ADD THIS!
+  const calculateAverageScore = (scores) => {
+    if (scores.length === 0) return 0;
+    const total = scores.reduce((sum, item) => sum + Number(item.score), 0);
+    const average = total / scores.length;
+    return Number(average.toFixed(2)); // Round to 2 decimal places
+  };
+
+
   // ✅ Helper: Validate AI response structure
   const validateAIResponse = (data) => {
     console.log('🔍 Validating AI response...');
