@@ -11,11 +11,11 @@ import path from "path";
 // const BASE_URL = process.env.BASE_URL || "https://safai-index-backend.onrender.com";
 
 export async function getCleanerReview(req, res) {
-  console.log("request made from get cleaner reviews");
+  // console.log("request made from get cleaner reviews");
 
   const { cleaner_user_id, status, date, company_id } = req.query;
 
-  console.log(company_id, "company_id from get cleaner review");
+  // console.log(company_id, "company_id from get cleaner review");
 
   try {
     const whereClause = {};
@@ -94,7 +94,7 @@ export async function getCleanerReview(req, res) {
 
     // ✅ Serialize all review data
     const serializedReviews = reviews.map(review => safeSerialize(review));
-    console.log('befor serilize', serializedReviews);
+    // console.log('befor serilize', serializedReviews);
     // const serialized = reviews.map((r) => {
     //   const safeReview = {};
     //   for (const [key, value] of Object.entries(r)) {
@@ -105,7 +105,7 @@ export async function getCleanerReview(req, res) {
 
     // console.log(serialized, "serilized data")
     // console.log(serialized.length, "data");
-    res.json(serializedReviews);
+    // res.json(serializedReviews);
   } catch (err) {
     console.error("Fetch Cleaner Reviews Error:", err);
     res.status(500).json({
@@ -119,9 +119,9 @@ export async function getCleanerReview(req, res) {
 
 
 export const getCleanerReviewsById = async (req, res) => {
-  console.log('Getting cleaner reviews by cleaner_user_id');
+  // console.log('Getting cleaner reviews by cleaner_user_id');
   const { cleaner_user_id } = req.params;
-  console.log(req.params, "params");
+  // console.log(req.params, "params");
 
   let stats = {};
   try {
@@ -252,7 +252,7 @@ export const getCleanerReviewsById = async (req, res) => {
       // cleaner_info: serializedReviews[0]?.cleaner_user || null
     };
 
-    console.log('Successfully fetched reviews with relationships');
+    // console.log('Successfully fetched reviews with relationships');
 
     res.json({
       status: "success",
@@ -275,9 +275,9 @@ export const getCleanerReviewsById = async (req, res) => {
 
 
 export const getCleanerReviewsByTaskId = async (req, res) => {
-  console.log('Getting cleaner reviews by task id');
+  // console.log('Getting cleaner reviews by task id');
   const { task_id } = req.params;
-  console.log(req.params, "params");
+  // console.log(req.params, "params");
 
   let stats = {};
   try {
@@ -392,7 +392,7 @@ export const getCleanerReviewsByTaskId = async (req, res) => {
     // ✅ Serialize all review data
     const serializedReviews = reviews.map(review => safeSerialize(review));
 
-    console.log(serializedReviews, "serilized regviews")
+    // console.log(serializedReviews, "serilized regviews")
     // ✅ Calculate stats from the reviews
     stats = {
       total_reviews: serializedReviews.length,
@@ -411,7 +411,7 @@ export const getCleanerReviewsByTaskId = async (req, res) => {
       // cleaner_info: serializedReviews[0]?.cleaner_user || null
     };
 
-    console.log('Successfully fetched reviews with relationships');
+    // console.log('Successfully fetched reviews with relationships');
 
     res.json({
       status: "success",
@@ -532,12 +532,12 @@ export async function createCleanerReview(req, res) {
 
     // ✅ Add length validation
     if (parsedTasks.length === 0) {
-      console.warn('No tasks provided for review');
+      // console.warn('No tasks provided for review');
     }
 
-    console.log('Original tasks:', tasks);
-    console.log('Parsed tasks:', parsedTasks);
-    console.log('Tasks count:', parsedTasks.length);
+    // console.log('Original tasks:', tasks);
+    // console.log('Parsed tasks:', parsedTasks);
+    // console.log('Tasks count:', parsedTasks.length);
 
     const review = await prisma.cleaner_review.create({
       data: {
@@ -1332,9 +1332,6 @@ async function processHygieneScoring(review, afterPhotos) {
     }
   }
 }
-
-
-
 
 
 

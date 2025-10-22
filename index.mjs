@@ -23,6 +23,7 @@ app.use(express.json());
 // ✅ Correct CORS setup (put before routes)
 const allowedOrigins = [
   "http://localhost:3000",
+  "http://localhost:3001",
   "http://localhost:8100", // Ionic dev
   "http://localhost:8101", // Ionic dev
   "http://localhost:8102", // Ionic dev

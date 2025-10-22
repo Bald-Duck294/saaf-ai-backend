@@ -99,6 +99,8 @@
 // routes/reviewRoutes.js
 import express from "express";
 import prisma from "../config/prismaClient.mjs";
+import axios from "axios";
+import FormData from "form-data";
 // import { upload, processAndUploadImages } from "../middleware/imageUpload.js";
 import { upload, processAndUploadImages } from "../middlewares/imageUpload.js";
 
@@ -113,55 +115,205 @@ function normalizeBigInt(obj) {
 }
 
 
+// // ✅ Asynchronous AI scoring for user reviews
+// async function processUserReviewAIScoring(review, imageUrls) {
+//   // Helper function to convert 0-100 scale to 1-10 scale
+//   const convertScoreTo10Scale = (score) => {
+//     if (score <= 10) {
+//       return score;
+//     }
+//     return Math.round(score) / 10;
+//   };
+
+//   // Helper function to calculate average score from multiple images
+//   const calculateAverageScore = (scores) => {
+//     if (!scores || scores.length === 0) return null;
+
+//     const validScores = scores
+//       .map(s => Number(s.score))
+//       .filter(s => !isNaN(s) && s > 0);
+
+//     if (validScores.length === 0) return null;
+
+//     const sum = validScores.reduce((total, score) => total + score, 0);
+//     const average = sum / validScores.length;
+
+//     return parseFloat(average.toFixed(2));
+//   };
+
+//   // Helper function to generate fake score
+//   const generateFakeScore = () => {
+//     return parseFloat((Math.random() * (10 - 6) + 6).toFixed(2)); // Random between 6-10
+//   };
+
+//   try {
+//     console.log('🚀 AI scoring started for user review:', review.id.toString());
+//     console.log('📸 Processing', imageUrls.length, 'images');
+
+//     if (imageUrls.length === 0) {
+//       console.log('⚠️ No images to process');
+//       return;
+//     }
+
+//     let aiScore = null;
+
+//     try {
+//       // Method 1: Send URLs to AI service
+//       console.log('🔄 Sending image URLs to AI service...');
+
+//       const urlPayload = {
+//         images: imageUrls
+//       };
+
+//       const aiResponse = await axios.post(
+//         "https://pugarch-c-score-776087882401.europe-west1.run.app/predict",
+//         urlPayload,
+//         {
+//           headers: {
+//             'Content-Type': 'application/json',
+//             'User-Agent': 'UserReview/1.0',
+//             "Authorization": "Bearer pugarch123"
+//           },
+//           timeout: 15000
+//         }
+//       );
+
+//       if (aiResponse.data && Array.isArray(aiResponse.data)) {
+//         console.log('✅ AI scoring successful');
+//         console.log('📊 Raw AI scores:', aiResponse.data.map(s => s.score));
+
+//         // Convert all scores to 1-10 scale
+//         const convertedScores = aiResponse.data.map(item => ({
+//           score: convertScoreTo10Scale(Number(item.score) || 0)
+//         }));
+
+//         // Calculate average
+//         aiScore = calculateAverageScore(convertedScores);
+//         console.log('📊 Converted scores:', convertedScores.map(s => s.score));
+//         console.log('📊 Average AI score:', aiScore);
+
+//       } else {
+//         throw new Error('Invalid AI response format');
+//       }
+
+//     } catch (aiError) {
+//       console.error('❌ AI scoring failed:', {
+//         message: aiError.message,
+//         status: aiError.response?.status,
+//         statusText: aiError.response?.statusText
+//       });
+
+//       // Fallback: Generate fake score
+//       console.log('🎲 Generating fake score as fallback...');
+//       aiScore = generateFakeScore();
+//       console.log('📊 Fake AI score:', aiScore);
+//     }
+
+//     // ✅ Update the review with AI score
+//     if (aiScore !== null) {
+//       await prisma.user_review.update({
+//         where: { id: review.id },
+//         data: {
+//           ai_score: aiScore,
+//           updated_at: new Date()
+//         }
+//       });
+
+//       console.log(`✅ AI score ${aiScore} saved for user review:`, review.id.toString());
+//     } else {
+//       console.log('⚠️ No AI score to save');
+//     }
+
+//   } catch (error) {
+//     console.error('🔴 Critical error in AI scoring:', {
+//       message: error.message,
+//       stack: error.stack,
+//       reviewId: review.id.toString()
+//     });
+//   }
+// }
+
+
 // ✅ Asynchronous AI scoring for user reviews
 async function processUserReviewAIScoring(review, imageUrls) {
-  // Helper function to convert 0-100 scale to 1-10 scale
+  console.log('\n========================================');
+  console.log('🚀 USER REVIEW AI SCORING STARTED');
+  console.log('========================================');
+  console.log('📋 Review ID:', review.id.toString());
+  console.log('📸 Total images:', imageUrls.length);
+  console.log('🔗 Image URLs:', imageUrls);
+  console.log('========================================\n');
+
+  // ✅ Helper: Convert 0-100 scale to 1-10 scale
   const convertScoreTo10Scale = (score) => {
-    if (score <= 10) {
-      return score;
-    }
+    if (score <= 10) return score;
     return Math.round(score) / 10;
   };
 
-  // Helper function to calculate average score from multiple images
+  // ✅ Helper: Calculate average score
   const calculateAverageScore = (scores) => {
     if (!scores || scores.length === 0) return null;
 
-    const validScores = scores
-      .map(s => Number(s.score))
-      .filter(s => !isNaN(s) && s > 0);
-
-    if (validScores.length === 0) return null;
-
-    const sum = validScores.reduce((total, score) => total + score, 0);
-    const average = sum / validScores.length;
-
-    return parseFloat(average.toFixed(2));
+    const total = scores.reduce((sum, item) => sum + Number(item.score), 0);
+    const average = total / scores.length;
+    return Number(average.toFixed(2)); // Round to 2 decimals
   };
 
-  // Helper function to generate fake score
+  // ✅ Helper: Validate AI response
+  const validateAIResponse = (data) => {
+    console.log('🔍 Validating AI response...');
+
+    if (!Array.isArray(data)) {
+      throw new Error('Response is not an array');
+    }
+
+    if (data.length === 0) {
+      throw new Error('Response array is empty');
+    }
+
+    const invalidItems = [];
+    data.forEach((item, index) => {
+      if (!item.filename || typeof item.score !== 'number' || !item.status) {
+        invalidItems.push(index);
+      }
+    });
+
+    if (invalidItems.length > 0) {
+      throw new Error(`Invalid items at indices: ${invalidItems.join(', ')}`);
+    }
+
+    console.log('✅ Response validation passed');
+    console.log(`📊 Received ${data.length} scores`);
+    data.forEach(item => {
+      console.log(`   - ${item.filename}: ${item.score}/10 (status: ${item.status})`);
+    });
+
+    return true;
+  };
+
+  // ✅ Helper: Generate fake score (fallback)
   const generateFakeScore = () => {
-    return parseFloat((Math.random() * (10 - 6) + 6).toFixed(2)); // Random between 6-10
+    return parseFloat((Math.random() * (10 - 6) + 6).toFixed(2));
   };
 
+  // ===== MAIN PROCESS =====
   try {
-    console.log('🚀 AI scoring started for user review:', review.id.toString());
-    console.log('📸 Processing', imageUrls.length, 'images');
-
     if (imageUrls.length === 0) {
-      console.log('⚠️ No images to process');
+      console.log('⚠️ No images to process. Exiting...\n');
       return;
     }
 
     let aiScore = null;
 
+    // ===== METHOD 1: TRY URL-BASED SCORING =====
     try {
-      // Method 1: Send URLs to AI service
-      console.log('🔄 Sending image URLs to AI service...');
+      console.log('\n🔄 METHOD 1: Sending image URLs to AI');
+      console.log('========================================');
 
-      const urlPayload = {
-        images: imageUrls
-      };
+      const urlPayload = { images: imageUrls };
+      console.log('📤 Payload:', JSON.stringify(urlPayload, null, 2));
+
+      const startTime = Date.now();
 
       const aiResponse = await axios.post(
         "https://pugarch-c-score-776087882401.europe-west1.run.app/predict",
@@ -170,45 +322,213 @@ async function processUserReviewAIScoring(review, imageUrls) {
           headers: {
             'Content-Type': 'application/json',
             'User-Agent': 'UserReview/1.0',
-            "Authorization": "Bearer pugarch123"
           },
           timeout: 15000
         }
       );
 
-      if (aiResponse.data && Array.isArray(aiResponse.data)) {
-        console.log('✅ AI scoring successful');
-        console.log('📊 Raw AI scores:', aiResponse.data.map(s => s.score));
+      const duration = Date.now() - startTime;
+      console.log(`⏱️  Response received in ${duration}ms`);
+      console.log('📥 Response status:', aiResponse.status);
+      console.log('📥 Response data:', JSON.stringify(aiResponse.data, null, 2));
 
-        // Convert all scores to 1-10 scale
-        const convertedScores = aiResponse.data.map(item => ({
-          score: convertScoreTo10Scale(Number(item.score) || 0)
-        }));
+      // Validate response
+      validateAIResponse(aiResponse.data);
 
-        // Calculate average
-        aiScore = calculateAverageScore(convertedScores);
-        console.log('📊 Converted scores:', convertedScores.map(s => s.score));
-        console.log('📊 Average AI score:', aiScore);
+      // Calculate average score
+      aiScore = calculateAverageScore(aiResponse.data);
+      console.log(`📊 Calculated Average AI Score: ${aiScore}/10`);
+      console.log('\n✅ METHOD 1 SUCCESSFUL - URL-based scoring');
+      console.log('========================================\n');
 
+    } catch (urlError) {
+      console.log('\n❌ METHOD 1 FAILED');
+      console.log('========================================');
+
+      if (urlError.code === 'ECONNABORTED') {
+        console.log('⏰ Error Type: Timeout (15 seconds exceeded)');
+      } else if (urlError.response) {
+        console.log('🔴 Error Type: Server responded with error');
+        console.log('   Status:', urlError.response.status);
+        console.log('   Status Text:', urlError.response.statusText);
+        console.log('   Response Data:', urlError.response.data);
+      } else if (urlError.request) {
+        console.log('🔴 Error Type: No response from server');
+        console.log('   Message:', urlError.message);
       } else {
-        throw new Error('Invalid AI response format');
+        console.log('🔴 Error Type: Request setup failed');
+        console.log('   Message:', urlError.message);
       }
+      console.log('========================================\n');
 
-    } catch (aiError) {
-      console.error('❌ AI scoring failed:', {
-        message: aiError.message,
-        status: aiError.response?.status,
-        statusText: aiError.response?.statusText
-      });
+      // ===== METHOD 2: TRY FORMDATA-BASED SCORING =====
+      try {
+        console.log('🔄 METHOD 2: Downloading images and sending as FormData');
+        console.log('========================================');
 
-      // Fallback: Generate fake score
-      console.log('🎲 Generating fake score as fallback...');
-      aiScore = generateFakeScore();
-      console.log('📊 Fake AI score:', aiScore);
+        // const FormData = require('form-data');
+        const formData = new FormData();
+        let successCount = 0;
+        let failCount = 0;
+
+        console.log(`\n📥 Downloading ${imageUrls.length} images...`);
+
+        // Download images sequentially
+        for (let i = 0; i < imageUrls.length; i++) {
+          const imageUrl = imageUrls[i];
+          console.log(`\n📷 Image ${i + 1}/${imageUrls.length}`);
+          console.log(`   URL: ${imageUrl}`);
+
+          try {
+            const downloadStart = Date.now();
+
+            // Download image as buffer
+            const response = await axios({
+              url: imageUrl,
+              method: 'GET',
+              responseType: 'arraybuffer',
+              timeout: 10000,
+              headers: {
+                'User-Agent': 'UserReview-ImageDownloader/1.0'
+              }
+            });
+
+            const downloadDuration = Date.now() - downloadStart;
+            const sizeKB = (response.data.length / 1024).toFixed(2);
+
+            console.log(`   ✅ Downloaded in ${downloadDuration}ms (${sizeKB} KB)`);
+            console.log(`   Content-Type: ${response.headers['content-type']}`);
+
+            // Append buffer to FormData
+            const filename = `image_${i + 1}.jpg`;
+            formData.append('images', Buffer.from(response.data), filename);
+
+            console.log(`   ✅ Added to FormData as "${filename}"`);
+            successCount++;
+
+          } catch (downloadError) {
+            failCount++;
+            console.log(`   ❌ Download failed:`, {
+              message: downloadError.message,
+              code: downloadError.code,
+              status: downloadError.response?.status
+            });
+          }
+        }
+
+        console.log('\n========================================');
+        console.log(`📊 Download Summary: ${successCount} success, ${failCount} failed`);
+        console.log('========================================\n');
+
+        if (successCount === 0) {
+          throw new Error('Failed to download any images');
+        }
+
+        console.log('📤 Sending FormData to AI service...');
+        const uploadStart = Date.now();
+
+        const aiResponse = await axios.post(
+          "https://pugarch-c-score-776087882401.europe-west1.run.app/predict",
+          formData,
+          {
+            headers: {
+              ...formData.getHeaders(),
+              'User-Agent': 'UserReview-AIService/1.0'
+            },
+            timeout: 30000,
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity
+          }
+        );
+
+        const uploadDuration = Date.now() - uploadStart;
+        console.log(`⏱️  Response received in ${uploadDuration}ms`);
+        console.log('📥 Response status:', aiResponse.status);
+        console.log('📥 Response data:', JSON.stringify(aiResponse.data, null, 2));
+
+        // Validate response
+        validateAIResponse(aiResponse.data);
+
+        // Calculate average score
+        aiScore = calculateAverageScore(aiResponse.data);
+        console.log(`📊 Calculated Average AI Score: ${aiScore}/10`);
+        console.log('\n✅ METHOD 2 SUCCESSFUL - FormData upload');
+        console.log('========================================\n');
+
+      } catch (formDataError) {
+        console.log('\n❌ METHOD 2 FAILED');
+        console.log('========================================');
+
+        if (formDataError.code === 'ECONNABORTED') {
+          console.log('⏰ Error Type: Timeout (30 seconds exceeded)');
+        } else if (formDataError.response) {
+          console.log('🔴 Error Type: Server error');
+          console.log('   Status:', formDataError.response.status);
+          console.log('   Status Text:', formDataError.response.statusText);
+          console.log('   Response Data:', JSON.stringify(formDataError.response.data, null, 2));
+        } else if (formDataError.request) {
+          console.log('🔴 Error Type: No response received');
+          console.log('   Message:', formDataError.message);
+        } else {
+          console.log('🔴 Error Type: Request setup failed');
+          console.log('   Message:', formDataError.message);
+          console.log('   Stack:', formDataError.stack);
+        }
+        console.log('========================================\n');
+
+        throw formDataError; // Trigger fallback to fake score
+      }
     }
 
-    // ✅ Update the review with AI score
+    // ===== UPDATE USER REVIEW WITH AI SCORE =====
     if (aiScore !== null) {
+      try {
+        const updatedReview = await prisma.user_review.update({
+          where: { id: review.id },
+          data: {
+            ai_score: aiScore,
+            updated_at: new Date()
+          }
+        });
+
+        console.log('✅ USER REVIEW UPDATED WITH AI SCORE');
+        console.log('========================================');
+        console.log(`   Review ID: ${review.id.toString()}`);
+        console.log(`   AI Score: ${aiScore}/10`);
+        console.log(`   Updated At: ${updatedReview.updated_at}`);
+        console.log('========================================\n');
+
+      } catch (updateError) {
+        console.log('\n❌ FAILED TO UPDATE USER REVIEW');
+        console.log('========================================');
+        console.error('   Error:', {
+          message: updateError.message,
+          code: updateError.code,
+          review_id: review.id.toString()
+        });
+        console.log('========================================\n');
+      }
+    }
+
+    console.log('\n✅ USER REVIEW AI SCORING COMPLETED');
+    console.log('========================================\n');
+
+  } catch (finalError) {
+    // ===== FALLBACK: GENERATE FAKE SCORE =====
+    console.log('\n🔴 ALL METHODS FAILED - Using Fallback');
+    console.log('========================================');
+    console.log('Error Summary:', {
+      message: finalError.message,
+      type: finalError.constructor.name,
+      code: finalError.code
+    });
+    console.log('========================================\n');
+
+    try {
+      console.log('🎲 Generating fake score as fallback...');
+      const fakeScore = generateFakeScore();
+      console.log(`📊 Fake AI Score: ${fakeScore}/10`);
+
       await prisma.user_review.update({
         where: { id: review.id },
         data: {
@@ -217,17 +537,19 @@ async function processUserReviewAIScoring(review, imageUrls) {
         }
       });
 
-      console.log(`✅ AI score ${aiScore} saved for user review:`, review.id.toString());
-    } else {
-      console.log('⚠️ No AI score to save');
-    }
+      console.log('\n✅ FALLBACK COMPLETED - Fake score saved');
+      console.log('========================================\n');
 
-  } catch (error) {
-    console.error('🔴 Critical error in AI scoring:', {
-      message: error.message,
-      stack: error.stack,
-      reviewId: review.id.toString()
-    });
+    } catch (fakeError) {
+      console.log('\n🔴 CRITICAL: FALLBACK FAILED');
+      console.log('========================================');
+      console.error('Unable to save even fake score:', {
+        message: fakeError.message,
+        stack: fakeError.stack,
+        code: fakeError.code
+      });
+      console.log('========================================\n');
+    }
   }
 }
 
