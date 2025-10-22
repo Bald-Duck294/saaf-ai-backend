@@ -11,11 +11,11 @@ import path from "path";
 // const BASE_URL = process.env.BASE_URL || "https://safai-index-backend.onrender.com";
 
 export async function getCleanerReview(req, res) {
-  // console.log("request made from get cleaner reviews");
+  console.log("request made from get cleaner reviews");
 
   const { cleaner_user_id, status, date, company_id } = req.query;
 
-  // console.log(company_id, "company_id from get cleaner review");
+  console.log(company_id, "company_id from get cleaner review");
 
   try {
     const whereClause = {};
@@ -105,7 +105,7 @@ export async function getCleanerReview(req, res) {
 
     // console.log(serialized, "serilized data")
     // console.log(serialized.length, "data");
-    // res.json(serializedReviews);
+    res.json(serializedReviews);
   } catch (err) {
     console.error("Fetch Cleaner Reviews Error:", err);
     res.status(500).json({

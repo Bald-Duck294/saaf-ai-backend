@@ -532,7 +532,7 @@ async function processUserReviewAIScoring(review, imageUrls) {
       await prisma.user_review.update({
         where: { id: review.id },
         data: {
-          ai_score: aiScore,
+          ai_score: fakeScore,
           updated_at: new Date()
         }
       });
@@ -611,6 +611,7 @@ reviewRoutes.post(
           description: body.description || "",
           toilet_id: body.toilet_id ? BigInt(body.toilet_id) : null,
           images: imageUrls, // Store Cloudinary URLs
+          company_id : body?.companyId
         },
       });
 
