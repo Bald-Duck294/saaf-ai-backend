@@ -59,6 +59,9 @@ export async function getCleanerReview(req, res) {
           }
         },
         company: true  // Include all company fields
+      },
+       orderBy: {
+        created_at: 'desc'  // 'desc' for newest first, 'asc' for oldest first
       }
     });
 
