@@ -64,18 +64,17 @@ model locations {
   type_id                BigInt?
   options                Json?                    @default("{}")
   lang_preference        String?                  @db.VarChar(255)
+  state                  String?
   geom                   Unsupported("geometry")?
   images                 String[]
   deletedAt              DateTime?
   address                String?
+  pincode                String?
   average_cleaning_score Float?
   city                   String?
   current_cleaning_score Float?
   dist                   String?
-  address                String?
   status                 Boolean?
-  current_cleaning_score Float?
-  average_cleaning_score Float?
   user_review_score      Float?
   assigned_users         LocationAssignment[]
   cleaner_assignments    cleaner_assignments[]
