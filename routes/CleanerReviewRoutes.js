@@ -62,6 +62,7 @@ import {
   createCleanerReview,
   completeCleanerReview,
   getCleanerReviewsByTaskId,
+  getCleanerReviewsByLocationId
 } from "../controller/cleanerReviewController.js";
 // import { upload, processAndUploadImages } from "../middleware/imageUpload.js";
 import { upload, processAndUploadImages } from "../middlewares/imageUpload.js";
@@ -80,6 +81,7 @@ const debugFields = (req, res, next) => {
 clean_review_Router.get("/", getCleanerReview);
 clean_review_Router.get("/:cleaner_user_id", getCleanerReviewsById);
 clean_review_Router.get("/task/:task_id", getCleanerReviewsByTaskId);
+clean_review_Router.get('/location/:location_id', getCleanerReviewsByLocationId);
 
 // Start review (before photos)
 clean_review_Router.post(

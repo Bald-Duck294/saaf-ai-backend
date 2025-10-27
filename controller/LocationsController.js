@@ -8,7 +8,7 @@ import db from "../db.js";
 export const getAllToilets = async (req, res) => {
   console.log("get all toilets");
   try {
-    const { company_id, type_id } = req.query; // get query params
+    const { company_id, type_id, include_unavailable } = req.query; // get query params
     // console.log(company_id, type_id, "all types of ids");
     // Build where clause dynamically
     const whereClause = {};
@@ -17,6 +17,15 @@ export const getAllToilets = async (req, res) => {
     }
     if (type_id) {
       whereClause.type_id = BigInt(type_id);
+    }
+    // By default, only show available toilets (status = true)
+    // Unless explicitly requested to include unavailable ones
+
+    if (include_unavailable !== 'true') {
+      whereClause.OR = [
+        { status: true },
+        { status: null }
+      ];
     }
 
     const allLocations = await prisma.locations.findMany({
@@ -61,6 +70,53 @@ export const getAllToilets = async (req, res) => {
     res.status(500).send("Error fetching toilet locations");
   }
 };
+
+// export const toggleStatusToilet = async (req, res) => {
+//   console.log("hit toggle status");
+//   const { id } = req.params;
+
+//   try {
+
+//     const toilet = await prisma.locations.findUnique({ where: { id } })
+//     const { name, status } = toilet;
+//     console.log(toilet, "staus before")
+//     if (!toilet) return res.status(204).json({ message: 'toilet not found for this id ' })
+
+//     const currentStaus = toilet?.status ?? true
+//     const newStatus = !currentStaus;
+//     console.log(currentStaus, "current stauts");
+//     console.log(newStatus, "new chanaged status");
+//     const update = await prisma.locations.update({
+//       where: {
+//         id : BigInt(id)
+//       },
+//       data: {
+//         status: newStatus
+//       }
+//     })
+
+//     console.log(update, "updated");
+//     res.status(200).json({
+//       message: "staus changed sucessully",
+//       data: {
+//         ...update,
+//         id: update?.id.toString(),
+//         company_id: update?.company_id.toString(),
+//         type_id: update?.type_id.toString(),
+//         parent_id: update?.parent_id?.toString()
+
+//       }
+//     })
+//   }
+//   catch (err) {
+//     console.log("canot change  the stat of toilet", err)
+//     res.status(500).json(err)
+//   }
+
+
+
+// }
+
 
 
 // export const getToiletById = async (req, res) => {
@@ -155,6 +211,70 @@ export const getAllToilets = async (req, res) => {
 
 
 // Add this search endpoint to your locations controller
+
+export const toggleStatusToilet = async (req, res) => {
+  console.log("hit toggle status");
+  const { id } = req.params;
+
+  try {
+    // ✅ Fetch the toilet
+    const toilet = await prisma.locations.findUnique({
+      where: {
+        id: BigInt(id)
+      }
+    });
+
+    console.log("Toilet data:", toilet);
+
+    // ✅ Check if toilet exists
+    if (!toilet) {
+      return res.status(404).json({
+        status: "error",
+        message: 'Toilet not found for this id'
+      });
+    }
+
+    // ✅ Treat null as true (active), then toggle
+    const currentStatus = toilet?.status ?? true; // null or undefined = true (active)
+    const newStatus = !currentStatus;
+
+    console.log("Current status:", currentStatus);
+    console.log("New status:", newStatus);
+
+    // ✅ Update the status
+    const updatedToilet = await prisma.locations.update({
+      where: {
+        id: BigInt(id)
+      },
+      data: {
+        status: newStatus
+      }
+    });
+
+    console.log("Updated toilet:", updatedToilet);
+
+    // ✅ Return success response
+    res.status(200).json({
+      status: "success",
+      message: `Status changed successfully to ${newStatus ? 'active' : 'disabled'}`,
+      data: {
+        ...updatedToilet,
+        id: updatedToilet.id.toString(),
+        company_id: updatedToilet.company_id.toString(),
+        type_id: updatedToilet.type_id?.toString(),
+        parent_id: updatedToilet.parent_id?.toString()
+      }
+    });
+
+  } catch (err) {
+    console.error("Cannot change the status of toilet:", err);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to toggle status",
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
+  }
+};
 
 
 export const getToiletById = async (req, res) => {
@@ -470,28 +590,20 @@ export const getSearchToilet = async (req, res) => {
 
 
 export const createLocation = async (req, res) => {
-  console.log("in create location -----------------------------////------------");
+  console.log("in create location");
 
   try {
-    const { name, parent_id, type_id, latitude, longitude, options } = req.body;
+    const {
+      name, parent_id, type_id, latitude, longitude, options,
+      address, pincode, state, city, dist, status
+    } = req.body;
     const { companyId } = req.query;
 
-    // ✅ Enhanced debug logging
     console.log("=== CREATE LOCATION DEBUG ===");
     console.log("Company ID:", companyId);
     console.log("Raw body data:", req.body);
-    console.log("Name:", name);
-    console.log("Type ID:", type_id);
-    console.log("Coordinates:", { latitude, longitude });
-    console.log("Options raw:", options);
-    console.log("Options type:", typeof options);
 
-    if (typeof options === 'string') {
-      console.log("Options string value:", options);
-      console.log("Is it [object Object]?", options === '[object Object]');
-    }
-
-    // Get uploaded image URLs from middleware
+    // Get uploaded image URLs
     const imageUrls = req.uploadedFiles?.images || [];
     console.log("Uploaded images:", imageUrls);
 
@@ -500,90 +612,125 @@ export const createLocation = async (req, res) => {
       return res.status(400).json({ error: "Name and typeId are required." });
     }
 
-    // ✅ Handle options parsing (only if it's a string)
+    // Handle options parsing
     let finalOptions = options ?? {};
-
     if (typeof options === 'string') {
-      console.log("Options is string, attempting to parse...");
-
-      if (options === '[object Object]') {
-        console.warn("Received [object Object] string, using empty object");
-        finalOptions = {};
-      } else if (options === '{}' || options === '') {
-        console.log("Options is empty string or {}, using empty object");
+      if (options === '[object Object]' || options === '{}' || options === '') {
         finalOptions = {};
       } else {
         try {
           finalOptions = JSON.parse(options);
           console.log("Successfully parsed options:", finalOptions);
         } catch (e) {
-          console.error("Failed to parse options string:", options, e);
+          console.error("Failed to parse options:", e);
           finalOptions = {};
         }
       }
-    } else if (typeof options === 'object' && options !== null) {
-      console.log("Options is already an object:", options);
-      finalOptions = options;
-    } else {
-      console.log("Options is neither string nor object, using empty object");
-      finalOptions = {};
     }
 
-    console.log("Final options to save:", finalOptions);
-    console.log("Final options stringified:", JSON.stringify(finalOptions));
-
-    // ✅ Fix latitude/longitude parsing
+    // Parse coordinates
     const parsedLatitude = latitude && latitude !== 'null' ? parseFloat(latitude) : null;
     const parsedLongitude = longitude && longitude !== 'null' ? parseFloat(longitude) : null;
 
+    // Parse status
+    const parsedStatus = status !== undefined && status !== null
+      ? status === 'true' || status === true
+      : true;
+
     console.log("Parsed coordinates:", { parsedLatitude, parsedLongitude });
 
+    // ✅ BUILD DATA WITH RELATION SYNTAX
     const locationData = {
       name,
-      parent_id: parent_id ? BigInt(parent_id) : null,
-      company_id: companyId ? BigInt(companyId) : null,
       latitude: parsedLatitude,
       longitude: parsedLongitude,
       metadata: {},
-      type_id: BigInt(type_id),
-      options: finalOptions, // ✅ Use processed options
+      options: finalOptions,
       images: imageUrls,
+      address: address || null,
+      pincode: pincode || null,
+      state: state || null,
+      city: city || null,
+      dist: dist || null,
+      status: parsedStatus,
     };
+
+    // ✅ Add relations using connect syntax
+    if (type_id) {
+      locationData.location_types = {
+        connect: { id: BigInt(type_id) }
+      };
+    }
+
+    if (companyId) {
+      locationData.companies = {
+        connect: { id: BigInt(companyId) }
+      };
+    }
+
+    if (parent_id) {
+      locationData.locations = {
+        connect: { id: BigInt(parent_id) }
+      };
+    }
 
     console.log("=== FINAL DATA TO SAVE ===");
     console.log(JSON.stringify({
       ...locationData,
-      parent_id: locationData.parent_id?.toString(),
-      company_id: locationData.company_id?.toString(),
-      type_id: locationData.type_id?.toString(),
+      location_types: locationData.location_types ? `connect to ID ${type_id}` : undefined,
+      companies: locationData.companies ? `connect to ID ${companyId}` : undefined,
+      locations: locationData.locations ? `connect to ID ${parent_id}` : undefined,
     }, null, 2));
 
-    // Insert into DB
+    // ✅ Insert into DB with include to get the relations back
     const newLocation = await prisma.locations.create({
       data: locationData,
+      include: {
+        location_types: true,
+        companies: true,
+      }
     });
 
     console.log("=== LOCATION CREATED ===");
-    console.log("Created location options:", newLocation.options);
+    console.log("Created location:", newLocation);
+
+
+    // ✅ SERIALIZE ALL BIGINT FIELDS (including nested objects)
+    const serializedLocation = {
+      ...newLocation,
+      id: newLocation.id.toString(),
+      parent_id: newLocation.parent_id?.toString() || null,
+      type_id: newLocation.type_id?.toString() || null,
+      company_id: newLocation.company_id?.toString() || null,
+      images: newLocation.images || [],
+      // ✅ Serialize nested location_types
+      location_types: newLocation.location_types ? {
+        ...newLocation.location_types,
+        id: newLocation.location_types.id.toString(),
+        parent_id: newLocation.location_types.parent_id?.toString() || null,
+        company_id: newLocation.location_types.company_id?.toString() || null,
+      } : null,
+      // ✅ Serialize nested companies
+      companies: newLocation.companies ? {
+        ...newLocation.companies,
+        id: newLocation.companies.id.toString(),
+      } : null,
+    };
 
     res.status(201).json({
       success: true,
       message: "Location added successfully.",
-      data: {
-        ...newLocation,
-        id: newLocation.id.toString(),
-        parent_id: newLocation.parent_id?.toString() || null,
-        type_id: newLocation.type_id?.toString() || null,
-        company_id: newLocation.company_id?.toString() || null,
-        images: newLocation.images || [],
-      },
+      data: serializedLocation,
     });
+
   } catch (err) {
     console.error("Error creating location:", err);
     console.error("Error stack:", err.stack);
     res.status(500).json({ error: "Failed to create location." });
   }
 };
+
+
 
 export const updateLocationById = async (req, res) => {
   try {

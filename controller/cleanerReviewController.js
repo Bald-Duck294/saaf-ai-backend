@@ -97,7 +97,7 @@ export async function getCleanerReview(req, res) {
 
     // ✅ Serialize all review data
     const serializedReviews = reviews.map(review => safeSerialize(review));
-    // console.log('befor serilize', serializedReviews);
+    console.log('befor serilize', serializedReviews);
     // const serialized = reviews.map((r) => {
     //   const safeReview = {};
     //   for (const [key, value] of Object.entries(r)) {
@@ -122,9 +122,9 @@ export async function getCleanerReview(req, res) {
 
 
 export const getCleanerReviewsById = async (req, res) => {
-  // console.log('Getting cleaner reviews by cleaner_user_id');
+  console.log('Getting cleaner reviews by cleaner_user_id');
   const { cleaner_user_id } = req.params;
-  // console.log(req.params, "params");
+  console.log(req.params, "params");
 
   let stats = {};
   try {
@@ -271,6 +271,159 @@ export const getCleanerReviewsById = async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Failed to fetch cleaner reviews by cleaner ID",
+      detail: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
+  }
+};
+
+// Get cleaner reviews by location_id
+export const getCleanerReviewsByLocationId = async (req, res) => {
+  console.log('Getting cleaner reviews by location_id');
+  const { location_id } = req.params;
+  const { company_id } = req.query;
+
+  console.log('Location ID:', location_id);
+  console.log('Company ID:', company_id);
+
+  try {
+    // Input validation
+    if (!location_id || isNaN(location_id)) {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid location ID provided"
+      });
+    }
+
+    // Build where clause
+    const whereClause = {
+      location_id: BigInt(location_id),
+    };
+
+    // Add company filter if provided
+    if (company_id) {
+      whereClause.company_id = BigInt(company_id);
+    }
+
+    // Fetch reviews with all related data
+    const reviews = await prisma.cleaner_review.findMany({
+      where: whereClause,
+      include: {
+        // Include cleaner user details
+        cleaner_user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            created_at: true,
+            updated_at: true,
+            role: {
+              select: {
+                id: true,
+                name: true,
+                description: true
+              }
+            }
+          }
+        },
+        // Include location details
+        location: {
+          select: {
+            id: true,
+            name: true,
+            latitude: true,
+            longitude: true,
+            metadata: true,
+            location_types: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            locations: { // parent location
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        // Include company details
+        company: {
+          select: {
+            id: true,
+            name: true,
+            description: true
+          }
+        }
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    if (reviews.length === 0) {
+      return res.status(200).json({
+        status: "success",
+        message: "No reviews found for this location",
+        data: {
+          reviews: [],
+          stats: {
+            total_reviews: 0,
+            completed_reviews: 0,
+            ongoing_reviews: 0,
+            average_score: null
+          }
+        },
+      });
+    }
+
+    // Serialization function for BigInt and Date
+    const safeSerialize = (obj) => {
+      if (obj === null || obj === undefined) return obj;
+      if (typeof obj === 'bigint') return obj.toString();
+      if (obj instanceof Date) return obj.toISOString();
+      if (Array.isArray(obj)) return obj.map(safeSerialize);
+      if (typeof obj === 'object') {
+        const serialized = {};
+        for (const [key, value] of Object.entries(obj)) {
+          serialized[key] = safeSerialize(value);
+        }
+        return serialized;
+      }
+      return obj;
+    };
+
+    // Serialize all review data
+    const serializedReviews = reviews.map(review => safeSerialize(review));
+
+    // Calculate stats
+    const stats = {
+      total_reviews: serializedReviews.length,
+      completed_reviews: serializedReviews.filter(r => r.status === 'completed').length,
+      ongoing_reviews: serializedReviews.filter(r => r.status === 'ongoing').length,
+      average_score: serializedReviews.length > 0 
+        ? (serializedReviews.reduce((sum, r) => sum + (parseFloat(r.score) || 0), 0) / serializedReviews.length).toFixed(2)
+        : null,
+      latest_review: serializedReviews[0] || null
+    };
+
+    console.log(`Successfully fetched ${serializedReviews.length} reviews for location ${location_id}`);
+
+    res.json({
+      status: "success",
+      data: {
+        reviews: serializedReviews,
+        stats: stats
+      },
+      message: "Cleaner reviews retrieved successfully!"
+    });
+
+  } catch (err) {
+    console.error("Fetch Reviews by Location ID Error:", err);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to fetch cleaner reviews by location ID",
       detail: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }

@@ -5,10 +5,11 @@ import {
   createLocation,
   getZonesWithToilets,
   getNearbyLocations,
-deleteLocationImage,
+  deleteLocationImage,
   getSearchToilet,
-  updateLocationById ,
-  deleteLocationById
+  updateLocationById,
+  deleteLocationById,
+  toggleStatusToilet
 } from "../controller/LocationsController.js";
 import { upload, processAndUploadImages } from "../middlewares/imageUpload.js"
 
@@ -25,6 +26,7 @@ getLocationRoutes.get('/nearby', getNearbyLocations);
 getLocationRoutes.get("/:id", getToiletById);
 getLocationRoutes.get("/search", getSearchToilet);
 getLocationRoutes.delete("/:id/image", deleteLocationImage);
+getLocationRoutes.post('/status/:id', toggleStatusToilet) 
 // Add this route to your locations routes
 getLocationRoutes.delete('/:id', deleteLocationById);
 
