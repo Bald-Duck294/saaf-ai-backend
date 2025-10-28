@@ -56,6 +56,7 @@ export const getAllToilets = async (req, res) => {
         parent_id: loc.parent_id?.toString() || null,
         company_id: loc.company_id?.toString() || null,
         type_id: loc.type_id?.toString() || null,
+        facility_companiesId: loc?.facility_companiesId?.toString(),
         images: loc.images || [], // ✅ Include images array
         averageRating: averageRating ? parseFloat(averageRating.toFixed(2)) : null, // Format to 2 decimal places
         ratingCount,
@@ -70,6 +71,8 @@ export const getAllToilets = async (req, res) => {
     res.status(500).send("Error fetching toilet locations");
   }
 };
+
+
 
 // export const toggleStatusToilet = async (req, res) => {
 //   console.log("hit toggle status");
@@ -394,7 +397,7 @@ export const getToiletById = async (req, res) => {
       parent_id: location.parent_id?.toString() || null,
       company_id: location.company_id?.toString() || null,
       type_id: location.type_id?.toString() || null,
-
+      facility_companiesId: location?.facility_companiesId?.toString || null,
       hygiene_scores: location.hygiene_scores.map(score => ({
         ...score,
         id: score.id?.toString() || null,
@@ -523,8 +526,6 @@ export const getSearchToilet = async (req, res) => {
   }
 };
 
-
-
 // export const createLocation = async (req, res) => {
 
 //   console.log("in create location -----------------------------////------------")
@@ -589,25 +590,179 @@ export const getSearchToilet = async (req, res) => {
 // Add this method to handle updating location with company security
 
 
+// export const createLocation = async (req, res) => {
+//   console.log("in create location");
+
+//   try {
+//     const {
+//       name, parent_id, type_id, latitude, longitude, options,
+//       address, pincode, state, city, dist, status,
+//       facility_company_id
+//     } = req.body;
+//     const { companyId } = req.query;
+
+//     console.log("=== CREATE LOCATION DEBUG ===");
+//     console.log("Company ID:", companyId);
+//     console.log("Raw body data:", req.body);
+//     console.log("Facility Company ID:", facility_company_id); // ✅ ADD THIS
+
+
+//     // Get uploaded image URLs
+//     const imageUrls = req.uploadedFiles?.images || [];
+//     console.log("Uploaded images:", imageUrls);
+
+//     // Basic validation
+//     if (!name || !type_id) {
+//       return res.status(400).json({ error: "Name and typeId are required." });
+//     }
+
+//     // Handle options parsing
+//     let finalOptions = options ?? {};
+//     if (typeof options === 'string') {
+//       if (options === '[object Object]' || options === '{}' || options === '') {
+//         finalOptions = {};
+//       } else {
+//         try {
+//           finalOptions = JSON.parse(options);
+//           console.log("Successfully parsed options:", finalOptions);
+//         } catch (e) {
+//           console.error("Failed to parse options:", e);
+//           finalOptions = {};
+//         }
+//       }
+//     }
+
+//     // Parse coordinates
+//     const parsedLatitude = latitude && latitude !== 'null' ? parseFloat(latitude) : null;
+//     const parsedLongitude = longitude && longitude !== 'null' ? parseFloat(longitude) : null;
+
+//     // Parse status
+//     const parsedStatus = status !== undefined && status !== null
+//       ? status === 'true' || status === true
+//       : true;
+
+//     console.log("Parsed coordinates:", { parsedLatitude, parsedLongitude });
+
+//     // ✅ BUILD DATA WITH RELATION SYNTAX
+//     const locationData = {
+//       name,
+//       latitude: parsedLatitude,
+//       longitude: parsedLongitude,
+//       metadata: {},
+//       options: finalOptions,
+//       images: imageUrls,
+//       address: address || null,
+//       pincode: pincode || null,
+//       state: state || null,
+//       city: city || null,
+//       dist: dist || null,
+//       status: parsedStatus,
+//     };
+
+//     // ✅ Add relations using connect syntax
+//     if (type_id) {
+//       locationData.location_types = {
+//         connect: { id: BigInt(type_id) }
+//       };
+//     }
+
+//     if (companyId) {
+//       locationData.companies = {
+//         connect: { id: BigInt(companyId) }
+//       };
+//     }
+
+//     if (parent_id) {
+//       locationData.locations = {
+//         connect: { id: BigInt(parent_id) }
+//       };
+//     }
+
+//     if (facility_company_id) {
+//       locationData.facility_companies = {
+//         connect: { id: BigInt(facility_company_id) }
+//       };
+//     }
+
+
+//     console.log("=== FINAL DATA TO SAVE ===");
+//     console.log(JSON.stringify({
+//       ...locationData,
+//       location_types: locationData.location_types ? `connect to ID ${type_id}` : undefined,
+//       companies: locationData.companies ? `connect to ID ${companyId}` : undefined,
+//       locations: locationData.locations ? `connect to ID ${parent_id}` : undefined,
+//     }, null, 2));
+
+//     // ✅ Insert into DB with include to get the relations back
+//     const newLocation = await prisma.locations.create({
+//       data: locationData,
+//       include: {
+//         location_types: true,
+//         companies: true,
+//       }
+//     });
+
+//     console.log("=== LOCATION CREATED ===");
+//     console.log("Created location:", newLocation);
+
+
+//     // ✅ SERIALIZE ALL BIGINT FIELDS (including nested objects)
+//     const serializedLocation = {
+//       ...newLocation,
+//       id: newLocation.id.toString(),
+//       parent_id: newLocation.parent_id?.toString() || null,
+//       type_id: newLocation.type_id?.toString() || null,
+//       company_id: newLocation.company_id?.toString() || null,
+//       images: newLocation.images || [],
+//       // ✅ Serialize nested location_types
+//       location_types: newLocation.location_types ? {
+//         ...newLocation.location_types,
+//         id: newLocation.location_types.id.toString(),
+//         parent_id: newLocation.location_types.parent_id?.toString() || null,
+//         company_id: newLocation.location_types.company_id?.toString() || null,
+//       } : null,
+//       // ✅ Serialize nested companies
+//       companies: newLocation.companies ? {
+//         ...newLocation.companies,
+//         id: newLocation.companies.id.toString(),
+//       } : null,
+//     };
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Location added successfully.",
+//       data: serializedLocation,
+//     });
+
+//   } catch (err) {
+//     console.error("Error creating location:", err);
+//     console.error("Error stack:", err.stack);
+//     res.status(500).json({ error: "Failed to create location." });
+//   }
+// };
+
+
 export const createLocation = async (req, res) => {
   console.log("in create location");
 
   try {
     const {
       name, parent_id, type_id, latitude, longitude, options,
-      address, pincode, state, city, dist, status
+      address, pincode, state, city, dist, status,
+      facility_company_id // ✅ ADD THIS LINE
     } = req.body;
     const { companyId } = req.query;
 
     console.log("=== CREATE LOCATION DEBUG ===");
     console.log("Company ID:", companyId);
+    console.log("Facility Company ID:", facility_company_id); // ✅ ADD THIS
     console.log("Raw body data:", req.body);
 
     // Get uploaded image URLs
     const imageUrls = req.uploadedFiles?.images || [];
     console.log("Uploaded images:", imageUrls);
 
-    // Basic validation
+    //     // Basic validation
     if (!name || !type_id) {
       return res.status(400).json({ error: "Name and typeId are required." });
     }
@@ -627,7 +782,6 @@ export const createLocation = async (req, res) => {
         }
       }
     }
-
     // Parse coordinates
     const parsedLatitude = latitude && latitude !== 'null' ? parseFloat(latitude) : null;
     const parsedLongitude = longitude && longitude !== 'null' ? parseFloat(longitude) : null;
@@ -638,6 +792,7 @@ export const createLocation = async (req, res) => {
       : true;
 
     console.log("Parsed coordinates:", { parsedLatitude, parsedLongitude });
+
 
     // ✅ BUILD DATA WITH RELATION SYNTAX
     const locationData = {
@@ -674,12 +829,20 @@ export const createLocation = async (req, res) => {
       };
     }
 
+    // ✅ ADD FACILITY COMPANY RELATION
+    if (facility_company_id) {
+      locationData.facility_companies = {
+        connect: { id: BigInt(facility_company_id) }
+      };
+    }
+
     console.log("=== FINAL DATA TO SAVE ===");
     console.log(JSON.stringify({
       ...locationData,
       location_types: locationData.location_types ? `connect to ID ${type_id}` : undefined,
       companies: locationData.companies ? `connect to ID ${companyId}` : undefined,
       locations: locationData.locations ? `connect to ID ${parent_id}` : undefined,
+      facility_companies: locationData.facility_companies ? `connect to ID ${facility_company_id}` : undefined, // ✅ ADD THIS
     }, null, 2));
 
     // ✅ Insert into DB with include to get the relations back
@@ -688,12 +851,12 @@ export const createLocation = async (req, res) => {
       include: {
         location_types: true,
         companies: true,
+        facility_companies: true, // ✅ ADD THIS
       }
     });
 
     console.log("=== LOCATION CREATED ===");
     console.log("Created location:", newLocation);
-
 
     // ✅ SERIALIZE ALL BIGINT FIELDS (including nested objects)
     const serializedLocation = {
@@ -702,18 +865,23 @@ export const createLocation = async (req, res) => {
       parent_id: newLocation.parent_id?.toString() || null,
       type_id: newLocation.type_id?.toString() || null,
       company_id: newLocation.company_id?.toString() || null,
+      facility_companiesId: newLocation.facility_companiesId?.toString() || null, // ✅ ADD THIS
       images: newLocation.images || [],
-      // ✅ Serialize nested location_types
       location_types: newLocation.location_types ? {
         ...newLocation.location_types,
         id: newLocation.location_types.id.toString(),
         parent_id: newLocation.location_types.parent_id?.toString() || null,
         company_id: newLocation.location_types.company_id?.toString() || null,
       } : null,
-      // ✅ Serialize nested companies
       companies: newLocation.companies ? {
         ...newLocation.companies,
         id: newLocation.companies.id.toString(),
+      } : null,
+      // ✅ ADD FACILITY COMPANY SERIALIZATION
+      facility_companies: newLocation.facility_companies ? {
+        ...newLocation.facility_companies,
+        id: newLocation.facility_companies.id.toString(),
+        company_id: newLocation.facility_companies.company_id?.toString() || null,
       } : null,
     };
 
@@ -845,6 +1013,7 @@ export const updateLocationById = async (req, res) => {
       parent_id: updatedLocation.parent_id?.toString() || null,
       company_id: updatedLocation.company_id?.toString() || null,
       type_id: updatedLocation.type_id?.toString() || null,
+      facility_companiesId : updatedLocation?.facility_companiesId?.toString() || null, 
       images: updatedLocation.images || [], // ✅ Include images in response
     };
 
