@@ -15,6 +15,7 @@ import companyRouter from "./routes/companyApiRoutes.js";
 import roleRouter from "./routes/roleRoutes.js";
 import registered_users_router from "./routes/registerUserApi.js";
 import dotenv from "dotenv";
+import reportRouter from "./routes/reportsRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -79,6 +80,7 @@ app.options("*", cors());
 
 app.use("/api", loginRoute);
 app.use("/api", registered_users_router);
+app.use("/api/reports", reportRouter);
 // app.use("/api", verifyToken);
 
 app.use("/api/locations", getLocationRoutes);
