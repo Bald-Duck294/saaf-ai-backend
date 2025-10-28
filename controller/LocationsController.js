@@ -265,7 +265,8 @@ export const toggleStatusToilet = async (req, res) => {
         id: updatedToilet.id.toString(),
         company_id: updatedToilet.company_id.toString(),
         type_id: updatedToilet.type_id?.toString(),
-        parent_id: updatedToilet.parent_id?.toString()
+        parent_id: updatedToilet.parent_id?.toString(),
+        facility_companiesId:updatedToilet?.updatedToilet?.toString()
       }
     });
 
