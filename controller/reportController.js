@@ -371,7 +371,16 @@ export const getZoneWiseReport = async (req, res) => {
                         name: true,
                     },
                 },
+                facility_companies: {
+                    select: {
+                        id: true,
+                        name: true,
+                        phone: true,
+                        email: true,
+                    },
+                },
             },
+
             orderBy: {
                 name: "asc",
             },
@@ -565,8 +574,10 @@ export const getZoneWiseReport = async (req, res) => {
 
                 // Company details
                 company_name: latestReview?.company?.name || location.companies?.name || "N/A",
-                facility_company: "Facility Management Co.",
-
+                facility_company: location.facility_companies?.name || "Not Assigned",
+                facility_company_id: location.facility_companies?.id?.toString() || null,
+                facility_company_phone: location.facility_companies?.phone || null,
+                facility_company_email: location.facility_companies?.email || null,
                 // Optional fields
                 ...(requestedFields.includes("pincode") && {
                     pincode: location.pincode || "N/A",
