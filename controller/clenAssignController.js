@@ -802,13 +802,97 @@ export const getAssignmentsByLocation = async (req, res) => {
 };
 
 // In your assignments controller
+// export const getAssignmentsByCleanerId = async (req, res) => {
+//   console.log('hit the get assignemnt by cleaner id ')
+//   try {
+//     const { cleaner_user_id } = req.params;
+//     const { company_id } = req.query;
+//     console.log("cleaner_user_id", cleaner_user_id);
+//     console.log("copany_id" , company_id)
+//     if (!cleaner_user_id) {
+//       return res.status(400).json({
+//         status: "error",
+//         message: "Cleaner user ID is required"
+//       });
+//     }
+
+//     const whereClause = {
+//       cleaner_user_id: BigInt(cleaner_user_id)
+//     };
+
+//     if (company_id) {
+//       whereClause.company_id = BigInt(company_id);
+//     }
+
+//     const assignments = await prisma.cleaner_assignments.findMany({
+//       where: whereClause,
+//       include: {
+//         locations: {
+//           select: {
+//             id: true,
+//             name: true,
+//             address: true,
+//             city: true,
+//             state: true,
+//             latitude: true,
+//             longitude: true
+//           }
+//         },
+//         supervisor: {
+//           select: {
+//             id: true,
+//             name: true,
+//             phone: true,
+//             email: true
+//           }
+//         }
+//       },
+//       orderBy: { assigned_on: 'desc' }
+//     });
+
+//     const serialized = assignments.map(a => ({
+//       ...a,
+//       id: a.id.toString(),
+//       cleaner_user_id: a.cleaner_user_id.toString(),
+//       company_id: a.company_id.toString(),
+//       type_id: a.type_id?.toString(),
+//       location_id: a.location_id?.toString(),
+//       supervisor_id: a.supervisor_id?.toString(),
+//       locations: a.locations ? {
+//         ...a.locations,
+//         id: a.locations.id.toString()
+//       } : null,
+//       supervisor: a.supervisor ? {
+//         ...a.supervisor,
+//         id: a.supervisor.id.toString()
+//       } : null
+//     }));
+
+//     res.status(200).json({
+//       status: "success",
+//       data: serialized
+//     });
+
+//   } catch (error) {
+//     console.error("Error fetching assignments by cleaner:", error);
+//     res.status(500).json({
+//       status: "error",
+//       message: "Internal Server Error"
+//     });
+//   }
+// };
+
+
+// In your assignments controller
 export const getAssignmentsByCleanerId = async (req, res) => {
   console.log('hit the get assignemnt by cleaner id ')
   try {
     const { cleaner_user_id } = req.params;
-    const { company_id } = req.query;
+    const { company_id, include_all_statuses } = req.query; // Add include_all_statuses
     console.log("cleaner_user_id", cleaner_user_id);
-    console.log("copany_id" , company_id)
+    console.log("company_id", company_id);
+    console.log("include_all_statuses", include_all_statuses);
+
     if (!cleaner_user_id) {
       return res.status(400).json({
         status: "error",
