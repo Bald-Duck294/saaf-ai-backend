@@ -908,6 +908,12 @@ export const getAssignmentsByCleanerId = async (req, res) => {
       whereClause.company_id = BigInt(company_id);
     }
 
+    // By default, only show assigned locations
+    // Unless explicitly requested to include all statuses
+    if (include_all_statuses !== 'true') {
+      whereClause.status = 'assigned';
+    }
+
     const assignments = await prisma.cleaner_assignments.findMany({
       where: whereClause,
       include: {
