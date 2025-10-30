@@ -106,8 +106,8 @@
 
 import prisma from "../config/prismaClient.mjs";
 
-// Helper function to convert BigInts
-import { getAllTemplates, getTemplateByName } from "../constant/configurationTemplates.js";
+// '/api/configurations/:name'
+// controller/configController.js
 function convertBigInts(obj) {
   if (Array.isArray(obj)) {
     return obj.map(convertBigInts);

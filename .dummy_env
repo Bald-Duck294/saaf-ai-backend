@@ -10,7 +10,7 @@
 
 
 # SHADOW_DATABASE_URL=postgresql://neondb_owner:npg_Xd0xHvyLK8kE@ep-fragrant-scene-a29jmz6c-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-SHADOW_DATABASE_URL=postgresql://neondb_owner:npg_mbqLGpi2gCw0@ep-ancient-brook-acr38y8w.sa-east-1.aws.neon.tech/shadow_database?sslmode=require&channel_binding=require
+SHADOW_DATABASE_URL=postgresql://neondb_owner:npg_Xd0xHvyLK8kE@ep-fragrant-scene-a29jmz6c-pooler.eu-central-1.aws.neon.tech/safaai_shadow?sslmode=require&channel_binding=require
 # SHADOW_DATABASE_URL="postgresql://neondb_owner:npg_Bu2OiV9NMXeR@ep-icy-base-af5q9dm2-pooler.c-2.us-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 
 
@@ -19,11 +19,6 @@ SHADOW_DATABASE_URL=postgresql://neondb_owner:npg_mbqLGpi2gCw0@ep-ancient-brook-
 
 #pug db DATABASE_URL = postgresql://neondb_owner:npg_WCGm84UbLyFN@ep-damp-field-a1xcmhp2-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
 
-# old neon console string 
-# DATABASE_URL=postgresql://neondb_owner:npg_mbqLGpi2gCw0@ep-ancient-brook-acr38y8w.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-DATABASE_URL= postgresql://app_user:npg_Bu2OiV9NMXeR@34.93.127.187:5432/safai_pg?sslmode=enabled
-SHADOW_DATABASE_URL = postgresql://app_user:npg_Bu2OiV9NMXeR@34.93.127.187:5432/safai_pg_shadow?sslmode=enabled
-PORT = 8000
-CLOUDINARY_CLOUD_NAME = dunbtikk6
-CLOUDINARY_API_KEY = 625995923528978   
-CLOUDINARY_API_SECRET = VTV6wWN3Q7KNAdCXjK_zZbg_tNo
+
+
+DATABASE_URL = postgresql://neondb_owner:npg_Bu2OiV9NMXeR@ep-icy-base-af5q9dm2-pooler.c-2.us-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
