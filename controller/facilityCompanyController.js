@@ -1,6 +1,7 @@
 // import { serializeBigInt } from "../utils/serializeBigInt.js";
 import { serializeBigInt } from "../utils/serializer.js";
 import prisma from "../config/prismaClient.mjs";
+import { json } from "express";
 /**
  * Get all facility companies
  * By default returns only active (status = true)
@@ -8,23 +9,24 @@ import prisma from "../config/prismaClient.mjs";
  */
 export const getAllFacilityCompanies = async (req, res) => {
     try {
-        const { company_id, include_inactive } = req.query;
+        const { company_id, include_inactive, facility_company_id } = req.query;
 
         console.log("Fetching facility companies:", { company_id, include_inactive });
-
+        const whereClause = {};
         // Validate company_id
-        if (!company_id) {
-            return res.status(400).json({
-                status: "error",
-                message: "company_id is required",
-            });
-        }
+        // if (!company_id) {
+        //     return res.status(400).json({
+        //         status: "error",
+        //         message: "company_id is required",
+        //     });
+        // }
 
         // Build where clause
-        const whereClause = {
-            company_id: BigInt(company_id),
-            deletedAt: null, // Only non-deleted records
-        };
+        if (company_id) {
+            whereClause.company_id = BigInt(company_id),
+                whereClause.deletedAt = null
+        }
+
 
         // By default, only show active facility companies
         // Unless explicitly requested to include inactive ones
@@ -32,6 +34,10 @@ export const getAllFacilityCompanies = async (req, res) => {
             whereClause.status = true;
         }
 
+        // Add facility company filter if provided
+        if (facility_company_id) {
+            whereClause.facility_company_id = BigInt(facility_company_id);
+        }
         const facilityCompanies = await prisma.facility_companies.findMany({
             where: whereClause,
             include: {
@@ -75,9 +81,7 @@ export const getAllFacilityCompanies = async (req, res) => {
     }
 };
 
-/**
- * Get single facility company by ID
- */
+
 export const getFacilityCompanyById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -127,9 +131,7 @@ export const getFacilityCompanyById = async (req, res) => {
     }
 };
 
-/**
- * Create new facility company
- */
+
 export const createFacilityCompany = async (req, res) => {
     try {
         const {
@@ -156,6 +158,7 @@ export const createFacilityCompany = async (req, res) => {
             status,
         } = req.body;
 
+        console.log(req.body, "registration number")
         // Validate required fields
         if (!name || !phone || !contact_person_name || !company_id) {
             return res.status(400).json({
@@ -164,8 +167,15 @@ export const createFacilityCompany = async (req, res) => {
             });
         }
 
+        const existingPhone = await prisma.facility_companies.findFirst({
+            where: {
+                phone: phone
+            }
+        })
+        if (existingPhone) { return res.status(500).json({ status: 'error', message: 'phone number alredy exist' }) }
         // Check if registration number already exists
         if (registration_number) {
+            // console.log('inside registration company');
             const existing = await prisma.facility_companies.findUnique({
                 where: { registration_number },
             });
@@ -192,7 +202,9 @@ export const createFacilityCompany = async (req, res) => {
                 state,
                 pincode,
                 country: country || "India",
-                registration_number,
+                registration_number: registration_number && registration_number.trim() !== ""
+                    ? registration_number
+                    : null,
                 pan_number,
                 license_number,
                 license_expiry_date: license_expiry_date
