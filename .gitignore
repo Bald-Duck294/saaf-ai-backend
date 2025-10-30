@@ -1,6 +1,7 @@
 node_modules
 # Keep environment variables out of version control
-.env
 
 /generated/prisma
 controller/cleanerReviewController - Copy.js
+controller/getDataController.js
+controller/getDataController.js
