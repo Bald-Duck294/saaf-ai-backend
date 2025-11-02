@@ -1,7 +1,8 @@
 import express from "express";
 import cors from "cors";
-import { verifyToken } from "./utils/jwt.js";
+// import { verifyToken } from "./utils/jwt.js";
 
+import { verifyToken } from "./middlewares/authMiddleware.js";
 import getLocationRoutes from "./routes/LocationRoutes.js";
 import location_types_router from "./routes/locationTypes.js";
 import configRouter from "./routes/configRoutes.js";

@@ -1,5 +1,7 @@
 // import prisma from "../config/database.js";
 import prisma from "../config/prismaClient.mjs";
+import RBACFilterService from "../utils/rbacFilterService.js";
+
 // import { serializeBigInt } from "../utils/serializeBigInt.js";
 
 
@@ -330,6 +332,359 @@ import prisma from "../config/prismaClient.mjs";
 //   }
 // };
 
+// -------------- without any role filtering  ---------------------- //
+
+// export const getZoneWiseReport = async (req, res) => {
+//     try {
+//         const {
+//             company_id,
+//             type_id,
+//             start_date,
+//             end_date,
+//             fields,
+//             review_filter, // New parameter: "all", "with_reviews", "without_reviews"
+//         } = req.query;
+
+//         console.log("Report params:", { company_id, type_id, start_date, end_date, review_filter });
+
+//         if (!company_id) {
+//             return res.status(400).json({
+//                 status: "error",
+//                 message: "company_id is required",
+//             });
+//         }
+
+//         // Build location where clause
+//         const locationWhereClause = {
+//             company_id: BigInt(company_id),
+//         };
+
+//         if (type_id) {
+//             locationWhereClause.type_id = BigInt(type_id);
+//         }
+
+//         const requestedFields = fields ? fields.split(",") : [];
+
+//         // Fetch ALL locations first
+//         const locations = await prisma.locations.findMany({
+//             where: locationWhereClause,
+//             include: {
+//                 location_types: {
+//                     select: {
+//                         id: true,
+//                         name: true,
+//                     },
+//                 },
+//                 facility_companies: {
+//                     select: {
+//                         id: true,
+//                         name: true,
+//                         phone: true,
+//                         email: true,
+//                     },
+//                 },
+//             },
+
+//             orderBy: {
+//                 name: "asc",
+//             },
+//         });
+
+//         console.log(`Found ${locations.length} locations for company ${company_id}`);
+
+//         // Build where clause for cleaner reviews
+//         const reviewWhereClause = {
+//             company_id: BigInt(company_id),
+//             status: "completed",
+//         };
+
+//         // Filter by date range
+//         if (start_date || end_date) {
+//             reviewWhereClause.created_at = {};
+//             if (start_date) {
+//                 reviewWhereClause.created_at.gte = new Date(start_date);
+//             }
+//             if (end_date) {
+//                 const endDateTime = new Date(end_date);
+//                 endDateTime.setHours(23, 59, 59, 999);
+//                 reviewWhereClause.created_at.lte = endDateTime;
+//             }
+//         }
+
+//         // Get location IDs to filter reviews
+//         const locationIds = locations.map((loc) => loc.id);
+
+//         // Fetch cleaner reviews for these locations
+//         const cleanerReviews = await prisma.cleaner_review.findMany({
+//             where: {
+//                 ...reviewWhereClause,
+//                 location_id: {
+//                     in: locationIds,
+//                 },
+//             },
+//             include: {
+//                 cleaner_user: {
+//                     select: {
+//                         id: true,
+//                         name: true,
+//                         phone: true,
+//                         email: true,
+//                     },
+//                 },
+//                 company: {
+//                     select: {
+//                         id: true,
+//                         name: true,
+//                     },
+//                 },
+//             },
+//             orderBy: {
+//                 created_at: "desc",
+//             },
+//         });
+
+//         console.log(`Found ${cleanerReviews.length} cleaner reviews`);
+
+//         // Fetch hygiene scores for these locations
+//         const hygieneScoresWhereClause = {
+//             location_id: {
+//                 in: locationIds,
+//             },
+//         };
+
+//         if (start_date || end_date) {
+//             hygieneScoresWhereClause.inspected_at = {};
+//             if (start_date) {
+//                 hygieneScoresWhereClause.inspected_at.gte = new Date(start_date);
+//             }
+//             if (end_date) {
+//                 const endDateTime = new Date(end_date);
+//                 endDateTime.setHours(23, 59, 59, 999);
+//                 hygieneScoresWhereClause.inspected_at.lte = endDateTime;
+//             }
+//         }
+
+//         const hygieneScoresData = await prisma.hygiene_scores.findMany({
+//             where: hygieneScoresWhereClause,
+//             select: {
+//                 location_id: true,
+//                 score: true,
+//                 inspected_at: true,
+//             },
+//             orderBy: {
+//                 inspected_at: "desc",
+//             },
+//         });
+
+//         console.log(`Found ${hygieneScoresData.length} hygiene scores`);
+
+//         // Group data by location
+//         const reviewsByLocation = {};
+//         const hygieneScoresByLocation = {};
+
+//         // Group cleaner reviews
+//         for (const review of cleanerReviews) {
+//             const locationId = review.location_id?.toString();
+//             if (!locationId) continue;
+
+//             if (!reviewsByLocation[locationId]) {
+//                 reviewsByLocation[locationId] = [];
+//             }
+//             reviewsByLocation[locationId].push(review);
+//         }
+
+//         // Group hygiene scores
+//         for (const hygieneScore of hygieneScoresData) {
+//             const locationId = hygieneScore.location_id?.toString();
+//             if (!locationId) continue;
+
+//             if (!hygieneScoresByLocation[locationId]) {
+//                 hygieneScoresByLocation[locationId] = [];
+//             }
+//             hygieneScoresByLocation[locationId].push(
+//                 parseFloat(hygieneScore.score || 0)
+//             );
+//         }
+
+//         // Build report data for ALL locations
+//         const reportData = [];
+
+//         for (const location of locations) {
+//             const locationId = location.id.toString();
+//             const reviews = reviewsByLocation[locationId] || [];
+//             const hygieneScores = hygieneScoresByLocation[locationId] || [];
+
+//             // Apply review filter logic
+//             const hasReviews = reviews.length > 0;
+
+//             // review_filter options:
+//             // "all" or undefined: show all locations (default)
+//             // "with_reviews": only show locations that have reviews
+//             // "without_reviews": only show locations without reviews
+
+//             if (review_filter === "with_reviews" && !hasReviews) {
+//                 continue; // Skip locations without reviews
+//             }
+
+//             if (review_filter === "without_reviews" && hasReviews) {
+//                 continue; // Skip locations with reviews
+//             }
+
+//             // Get latest review (if exists)
+//             const latestReview = reviews[0];
+
+//             // Calculate average rating from hygiene scores
+//             const avgRating =
+//                 hygieneScores.length > 0
+//                     ? hygieneScores.reduce((sum, score) => sum + score, 0) /
+//                     hygieneScores.length
+//                     : 0;
+
+//             // Current score from latest cleaner review
+//             const currentScore = latestReview?.score || 0;
+
+//             // Get unique cleaners
+//             const uniqueCleaners = new Set(
+//                 reviews.map((r) => r.cleaner_user_id?.toString()).filter(Boolean)
+//             );
+
+//             const reportItem = {
+//                 // Location details
+//                 location_id: locationId,
+//                 location_name: location.name || "Unknown",
+//                 address: location.address || "N/A",
+//                 city: location.city || "N/A",
+//                 state: location.state || "N/A",
+//                 zone: location.location_types?.name || "N/A",
+//                 latitude: location.latitude || null,
+//                 longitude: location.longitude || null,
+
+//                 // Cleaner details (from latest review if exists)
+//                 cleaner_id: latestReview?.cleaner_user_id?.toString() || null,
+//                 cleaner_name: latestReview?.cleaner_user?.name || "Not Assigned",
+//                 cleaner_phone: latestReview?.cleaner_user?.phone || "N/A",
+
+//                 // Scores
+//                 current_score: parseFloat(currentScore.toFixed(2)),
+//                 average_rating: parseFloat(avgRating.toFixed(2)),
+//                 hygiene_score_count: hygieneScores.length,
+
+//                 // Review details
+//                 review_status: latestReview?.status || "No Reviews",
+//                 last_review_date: latestReview?.created_at || null,
+//                 total_reviews: reviews.length,
+//                 unique_cleaners: uniqueCleaners.size,
+//                 has_reviews: hasReviews, // Add flag to indicate if location has reviews
+
+//                 // Company details
+//                 company_name: latestReview?.company?.name || location.companies?.name || "N/A",
+//                 facility_company: location.facility_companies?.name || "Not Assigned",
+//                 facility_company_id: location.facility_companies?.id?.toString() || null,
+//                 facility_company_phone: location.facility_companies?.phone || null,
+//                 facility_company_email: location.facility_companies?.email || null,
+//                 // Optional fields
+//                 ...(requestedFields.includes("pincode") && {
+//                     pincode: location.pincode || "N/A",
+//                 }),
+//                 ...(requestedFields.includes("tasks") && {
+//                     tasks: latestReview?.tasks || [],
+//                 }),
+//                 ...(requestedFields.includes("comments") && {
+//                     initial_comment: latestReview?.initial_comment || "",
+//                     final_comment: latestReview?.final_comment || "",
+//                 }),
+//                 ...(requestedFields.includes("photos") && {
+//                     before_photos: latestReview?.before_photo || [],
+//                     after_photos: latestReview?.after_photo || [],
+//                 }),
+//             };
+
+//             reportData.push(reportItem);
+//         }
+
+//         // Sort by current score (descending)
+//         reportData.sort((a, b) => b.current_score - a.current_score);
+
+//         // Get company name
+//         const companyName = await prisma.companies.findUnique({
+//             where: { id: BigInt(company_id) },
+//             select: { name: true },
+//         });
+
+//         // Prepare metadata with filter information
+//         const reportMetadata = {
+//             organization: companyName?.name || "N/A",
+//             zone: type_id
+//                 ? locations[0]?.location_types?.name || "Selected Zone"
+//                 : "All Zones",
+//             date_range: {
+//                 start: start_date || "Beginning",
+//                 end: end_date || "Now",
+//             },
+//             report_type: "Zone-wise Cleaner Activity Report",
+//             generated_on: new Date().toISOString(),
+
+//             // Filter information
+//             review_filter: review_filter || "all",
+//             filter_description:
+//                 review_filter === "with_reviews" ? "Showing only locations with reviews" :
+//                     review_filter === "without_reviews" ? "Showing only locations without reviews" :
+//                         "Showing all locations",
+
+//             // Statistics
+//             total_locations: reportData.length,
+//             total_reviews: reportData.reduce(
+//                 (sum, item) => sum + item.total_reviews,
+//                 0
+//             ),
+//             locations_with_reviews: reportData.filter(item => item.has_reviews).length,
+//             locations_without_reviews: reportData.filter(item => !item.has_reviews).length,
+
+//             // Averages (only calculate for locations with scores)
+//             average_score_overall:
+//                 reportData.length > 0
+//                     ? parseFloat(
+//                         (
+//                             reportData.reduce((sum, item) => sum + item.current_score, 0) /
+//                             reportData.length
+//                         ).toFixed(2)
+//                     )
+//                     : 0,
+//             average_rating_overall:
+//                 reportData.length > 0
+//                     ? parseFloat(
+//                         (
+//                             reportData.reduce((sum, item) => sum + item.average_rating, 0) /
+//                             reportData.length
+//                         ).toFixed(2)
+//                     )
+//                     : 0,
+//         };
+
+//         res.status(200).json({
+//             status: "success",
+//             message: "Report generated successfully",
+//             metadata: reportMetadata,
+//             data: reportData,
+//             count: reportData.length,
+//         });
+//     } catch (error) {
+//         console.error("Error generating zone-wise report:", error);
+//         res.status(500).json({
+//             status: "error",
+//             message: "Failed to generate report",
+//             error: process.env.NODE_ENV === "development" ? error.message : undefined,
+//         });
+//     }
+// };
+
+/**
+ * Get available zones/areas for filter
+ */
+
+// with role - filtering //
+
+
 export const getZoneWiseReport = async (req, res) => {
     try {
         const {
@@ -338,10 +693,19 @@ export const getZoneWiseReport = async (req, res) => {
             start_date,
             end_date,
             fields,
-            review_filter, // New parameter: "all", "with_reviews", "without_reviews"
+            review_filter,
         } = req.query;
 
-        console.log("Report params:", { company_id, type_id, start_date, end_date, review_filter });
+        const user = req.user; // ✅ From verifyToken middleware
+
+        console.log("Report params:", {
+            company_id,
+            type_id,
+            start_date,
+            end_date,
+            review_filter,
+            user_role_id: user?.role_id
+        });
 
         if (!company_id) {
             return res.status(400).json({
@@ -350,10 +714,17 @@ export const getZoneWiseReport = async (req, res) => {
             });
         }
 
-        // Build location where clause
+        // ✅ BUILD LOCATION WHERE CLAUSE WITH RBAC FILTER
+        // This handles both admin (all locations) and supervisor (assigned locations only)
         const locationWhereClause = {
             company_id: BigInt(company_id),
         };
+
+        // ✅ Apply RBAC location filter (same as cleaner_review)
+        // For Supervisor (role_id=3): filters to only their assigned locations
+        // For Admin/Super-Admin: no filter (all locations)
+        const roleFilter = await RBACFilterService.getLocationFilter(user, "location_report");
+        Object.assign(locationWhereClause, roleFilter);
 
         if (type_id) {
             locationWhereClause.type_id = BigInt(type_id);
@@ -361,7 +732,7 @@ export const getZoneWiseReport = async (req, res) => {
 
         const requestedFields = fields ? fields.split(",") : [];
 
-        // Fetch ALL locations first
+        // Fetch locations with RBAC filtering
         const locations = await prisma.locations.findMany({
             where: locationWhereClause,
             include: {
@@ -380,15 +751,15 @@ export const getZoneWiseReport = async (req, res) => {
                     },
                 },
             },
-
             orderBy: {
                 name: "asc",
             },
         });
 
-        console.log(`Found ${locations.length} locations for company ${company_id}`);
+        console.log(`Found ${locations.length} locations for company ${company_id} (with RBAC filter for role ${user?.role_id})`);
 
         // Build where clause for cleaner reviews
+        // ❌ NO supervisor_id filter needed - location filtering already restricts this
         const reviewWhereClause = {
             company_id: BigInt(company_id),
             status: "completed",
@@ -407,15 +778,17 @@ export const getZoneWiseReport = async (req, res) => {
             }
         }
 
-        // Get location IDs to filter reviews
+        // Get location IDs from RBAC-filtered locations
         const locationIds = locations.map((loc) => loc.id);
 
-        // Fetch cleaner reviews for these locations
+        // ✅ Fetch reviews for RBAC-filtered locations only
+        // If supervisor: only gets reviews for their assigned cleaners' locations
+        // If admin: gets all reviews
         const cleanerReviews = await prisma.cleaner_review.findMany({
             where: {
                 ...reviewWhereClause,
                 location_id: {
-                    in: locationIds,
+                    in: locationIds,  // ✅ This restricts by RBAC-filtered locations
                 },
             },
             include: {
@@ -439,12 +812,12 @@ export const getZoneWiseReport = async (req, res) => {
             },
         });
 
-        console.log(`Found ${cleanerReviews.length} cleaner reviews`);
+        console.log(`Found ${cleanerReviews.length} cleaner reviews from RBAC-filtered locations`);
 
         // Fetch hygiene scores for these locations
         const hygieneScoresWhereClause = {
             location_id: {
-                in: locationIds,
+                in: locationIds,  // ✅ Also filtered by RBAC
             },
         };
 
@@ -502,7 +875,7 @@ export const getZoneWiseReport = async (req, res) => {
             );
         }
 
-        // Build report data for ALL locations
+        // Build report data for ALL RBAC-filtered locations
         const reportData = [];
 
         for (const location of locations) {
@@ -513,17 +886,12 @@ export const getZoneWiseReport = async (req, res) => {
             // Apply review filter logic
             const hasReviews = reviews.length > 0;
 
-            // review_filter options:
-            // "all" or undefined: show all locations (default)
-            // "with_reviews": only show locations that have reviews
-            // "without_reviews": only show locations without reviews
-
             if (review_filter === "with_reviews" && !hasReviews) {
-                continue; // Skip locations without reviews
+                continue;
             }
 
             if (review_filter === "without_reviews" && hasReviews) {
-                continue; // Skip locations with reviews
+                continue;
             }
 
             // Get latest review (if exists)
@@ -551,6 +919,7 @@ export const getZoneWiseReport = async (req, res) => {
                 address: location.address || "N/A",
                 city: location.city || "N/A",
                 state: location.state || "N/A",
+                district: location.dist || "N/A",
                 zone: location.location_types?.name || "N/A",
                 latitude: location.latitude || null,
                 longitude: location.longitude || null,
@@ -570,7 +939,7 @@ export const getZoneWiseReport = async (req, res) => {
                 last_review_date: latestReview?.created_at || null,
                 total_reviews: reviews.length,
                 unique_cleaners: uniqueCleaners.size,
-                has_reviews: hasReviews, // Add flag to indicate if location has reviews
+                has_reviews: hasReviews,
 
                 // Company details
                 company_name: latestReview?.company?.name || location.companies?.name || "N/A",
@@ -578,6 +947,7 @@ export const getZoneWiseReport = async (req, res) => {
                 facility_company_id: location.facility_companies?.id?.toString() || null,
                 facility_company_phone: location.facility_companies?.phone || null,
                 facility_company_email: location.facility_companies?.email || null,
+
                 // Optional fields
                 ...(requestedFields.includes("pincode") && {
                     pincode: location.pincode || "N/A",
@@ -607,7 +977,7 @@ export const getZoneWiseReport = async (req, res) => {
             select: { name: true },
         });
 
-        // Prepare metadata with filter information
+        // ✅ Add user role info to metadata
         const reportMetadata = {
             organization: companyName?.name || "N/A",
             zone: type_id
@@ -619,6 +989,11 @@ export const getZoneWiseReport = async (req, res) => {
             },
             report_type: "Zone-wise Cleaner Activity Report",
             generated_on: new Date().toISOString(),
+
+            // ✅ Add RBAC info
+            user_role_id: user?.role_id,
+            user_role_name: user?.role?.name || "Unknown",
+            generated_by_user_id: user?.id,
 
             // Filter information
             review_filter: review_filter || "all",
@@ -636,7 +1011,7 @@ export const getZoneWiseReport = async (req, res) => {
             locations_with_reviews: reportData.filter(item => item.has_reviews).length,
             locations_without_reviews: reportData.filter(item => !item.has_reviews).length,
 
-            // Averages (only calculate for locations with scores)
+            // Averages
             average_score_overall:
                 reportData.length > 0
                     ? parseFloat(
@@ -674,9 +1049,6 @@ export const getZoneWiseReport = async (req, res) => {
     }
 };
 
-/**
- * Get available zones/areas for filter
- */
 export const getAvailableZones = async (req, res) => {
     try {
         const { company_id } = req.query;

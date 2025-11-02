@@ -1,77 +1,75 @@
 import prisma from "../config/prismaClient.mjs";
 import db from "../db.js";
+// import RBACFilterService from "../services/rbacFilterService.js";
+import RBACFilterService from "../utils/rbacFilterService.js";
 
 
+// export const getAllToilets = async (req, res) => {
+//   console.log("get all toilets");
+//   try {
+//     const { company_id, type_id, include_unavailable } = req.query; // get query params
+//     // console.log(company_id, type_id, "all types of ids");
+//     // Build where clause dynamically
+//     const whereClause = {};
+//     if (company_id) {
+//       whereClause.company_id = BigInt(company_id);
+//     }
+//     if (type_id) {
+//       whereClause.type_id = BigInt(type_id);
+//     }
+//     // By default, only show available toilets (status = true)
+//     // Unless explicitly requested to include unavailable ones
 
+//     if (include_unavailable !== 'true') {
+//       whereClause.OR = [
+//         { status: true },
+//         { status: null }
+//       ];
+//     }
 
+//     const allLocations = await prisma.locations.findMany({
+//       where: Object.keys(whereClause).length ? whereClause : undefined,
+//       include: {
+//         // Fetch ALL hygiene scores for each location
+//         hygiene_scores: {
+//           select: { score: true },
+//         },
+//       },
+//     });
 
-export const getAllToilets = async (req, res) => {
-  console.log("get all toilets");
-  try {
-    const { company_id, type_id, include_unavailable } = req.query; // get query params
-    // console.log(company_id, type_id, "all types of ids");
-    // Build where clause dynamically
-    const whereClause = {};
-    if (company_id) {
-      whereClause.company_id = BigInt(company_id);
-    }
-    if (type_id) {
-      whereClause.type_id = BigInt(type_id);
-    }
-    // By default, only show available toilets (status = true)
-    // Unless explicitly requested to include unavailable ones
+//     const result = allLocations.map((loc) => {
+//       // --- New Rating Calculation Logic ---
+//       const hygieneScores = loc.hygiene_scores.map(hs => Number(hs.score));
+//       const ratingCount = hygieneScores.length;
 
-    if (include_unavailable !== 'true') {
-      whereClause.OR = [
-        { status: true },
-        { status: null }
-      ];
-    }
+//       let averageRating = null;
+//       if (ratingCount > 0) {
+//         const sumOfScores = hygieneScores.reduce((sum, score) => sum + score, 0);
+//         // Calculate the direct average of the scores.
+//         averageRating = sumOfScores / ratingCount;
+//       }
 
-    const allLocations = await prisma.locations.findMany({
-      where: Object.keys(whereClause).length ? whereClause : undefined,
-      include: {
-        // Fetch ALL hygiene scores for each location
-        hygiene_scores: {
-          select: { score: true },
-        },
-      },
-    });
+//       return {
+//         ...loc,
+//         id: loc.id.toString(),
+//         parent_id: loc.parent_id?.toString() || null,
+//         company_id: loc.company_id?.toString() || null,
+//         type_id: loc.type_id?.toString() || null,
+//         facility_companiesId: loc?.facility_companiesId?.toString(),
+//         images: loc.images || [], // ✅ Include images array
+//         averageRating: averageRating ? parseFloat(averageRating.toFixed(2)) : null, // Format to 2 decimal places
+//         ratingCount,
+//         hygiene_scores: undefined, // Remove the original hygiene_scores array from the final output
+//       };
+//     });
 
-    const result = allLocations.map((loc) => {
-      // --- New Rating Calculation Logic ---
-      const hygieneScores = loc.hygiene_scores.map(hs => Number(hs.score));
-      const ratingCount = hygieneScores.length;
-
-      let averageRating = null;
-      if (ratingCount > 0) {
-        const sumOfScores = hygieneScores.reduce((sum, score) => sum + score, 0);
-        // Calculate the direct average of the scores.
-        averageRating = sumOfScores / ratingCount;
-      }
-
-      return {
-        ...loc,
-        id: loc.id.toString(),
-        parent_id: loc.parent_id?.toString() || null,
-        company_id: loc.company_id?.toString() || null,
-        type_id: loc.type_id?.toString() || null,
-        facility_companiesId: loc?.facility_companiesId?.toString(),
-        images: loc.images || [], // ✅ Include images array
-        averageRating: averageRating ? parseFloat(averageRating.toFixed(2)) : null, // Format to 2 decimal places
-        ratingCount,
-        hygiene_scores: undefined, // Remove the original hygiene_scores array from the final output
-      };
-    });
-
-    // console.log(result.slice(0, 6), "result");
-    res.json(result);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error fetching toilet locations");
-  }
-};
-
+//     // console.log(result.slice(0, 6), "result");
+//     res.json(result);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send("Error fetching toilet locations");
+//   }
+// };
 
 
 // export const toggleStatusToilet = async (req, res) => {
@@ -215,6 +213,111 @@ export const getAllToilets = async (req, res) => {
 
 // Add this search endpoint to your locations controller
 
+
+export const getAllToilets = async (req, res) => {
+  console.log("get all toilets");
+  try {
+    // STEP 1: Get user from JWT (already set by verifyToken middleware)
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    console.log("User from JWT:", user);  // { id, role_id, company_id, email }
+
+    const { company_id, type_id, include_unavailable } = req.query;
+
+    // STEP 2: Build base where clause from query params
+    const whereClause = {};
+
+    // STEP 3: Get role-based filter (automatic based on user's role)
+    const roleFilter = await RBACFilterService.getLocationFilter(user);
+
+    console.log(roleFilter, "filters data")
+    // STEP 4: Merge role filter into where clause
+    Object.assign(whereClause, roleFilter);
+
+
+    // STEP 5: Add company filter (only if super admin overrides, otherwise use role filter)
+    if (user.role_id === 1 && company_id) {
+      console.log('inside user role id')
+      // Super admin can override company filter
+      whereClause.company_id = BigInt(company_id);
+    } else if (user.role_id === 2 && company_id) {
+      whereClause.company_id = BigInt(company_id);
+    }
+    // else if (!roleFilter.company_id && user.company_id) {
+    //   // If role filter doesn't set company, add user's company
+    //   whereClause.company_id = user.company_id;
+    // }
+    else{
+      whereClause.company_id = company_id
+    }
+
+
+    console.log(whereClause, "where clause")
+
+    // STEP 6: Add type filter from query
+    if (type_id) {
+      whereClause.type_id = BigInt(type_id);
+    }
+
+    // STEP 7: Add status filter
+    if (include_unavailable !== 'true') {
+      whereClause.OR = [
+        { status: true },
+        { status: null }
+      ];
+    }
+
+    console.log("Final where clause:", whereClause);
+
+    // STEP 8: Query database with merged filters
+    const allLocations = await prisma.locations.findMany({
+      where: Object.keys(whereClause).length ? whereClause : undefined,
+      include: {
+        hygiene_scores: {
+          select: { score: true },
+        },
+      },
+    });
+
+    // STEP 9: Format response (SAME as before)
+    const result = allLocations.map((loc) => {
+      const hygieneScores = loc.hygiene_scores.map(hs => Number(hs.score));
+      const ratingCount = hygieneScores.length;
+
+      let averageRating = null;
+      if (ratingCount > 0) {
+        const sumOfScores = hygieneScores.reduce((sum, score) => sum + score, 0);
+        averageRating = sumOfScores / ratingCount;
+      }
+
+      return {
+        ...loc,
+        id: loc.id.toString(),
+        parent_id: loc.parent_id?.toString() || null,
+        company_id: loc.company_id?.toString() || null,
+        type_id: loc.type_id?.toString() || null,
+        facility_companiesId: loc?.facility_companiesId?.toString() || null,
+        images: loc.images || [],
+        averageRating: averageRating ? parseFloat(averageRating.toFixed(2)) : null,
+        ratingCount,
+        hygiene_scores: undefined,
+      };
+    });
+
+    console.log("Result count:", result.length);
+    res.json(result);  // ← Response format unchanged
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching toilet locations");
+  }
+};
+
+
 export const toggleStatusToilet = async (req, res) => {
   console.log("hit toggle status");
   const { id } = req.params;
@@ -266,7 +369,7 @@ export const toggleStatusToilet = async (req, res) => {
         company_id: updatedToilet.company_id.toString(),
         type_id: updatedToilet.type_id?.toString(),
         parent_id: updatedToilet.parent_id?.toString(),
-        facility_companiesId:updatedToilet?.updatedToilet?.toString()
+        facility_companiesId: updatedToilet?.updatedToilet?.toString()
       }
     });
 
@@ -526,6 +629,7 @@ export const getSearchToilet = async (req, res) => {
     });
   }
 };
+
 
 // export const createLocation = async (req, res) => {
 
@@ -838,13 +942,13 @@ export const createLocation = async (req, res) => {
     }
 
     console.log("=== FINAL DATA TO SAVE ===");
-    console.log(JSON.stringify({
-      ...locationData,
-      location_types: locationData.location_types ? `connect to ID ${type_id}` : undefined,
-      companies: locationData.companies ? `connect to ID ${companyId}` : undefined,
-      locations: locationData.locations ? `connect to ID ${parent_id}` : undefined,
-      facility_companies: locationData.facility_companies ? `connect to ID ${facility_company_id}` : undefined, // ✅ ADD THIS
-    }, null, 2));
+    // console.log(JSON.stringify({
+    //   ...locationData,
+    //   location_types: locationData.location_types ? `connect to ID ${type_id}` : undefined,
+    //   companies: locationData.companies ? `connect to ID ${companyId}` : undefined,
+    //   locations: locationData.locations ? `connect to ID ${parent_id}` : undefined,
+    //   facility_companies: locationData.facility_companies ? `connect to ID ${facility_company_id}` : undefined, // ✅ ADD THIS
+    // }, null, 2));
 
     // ✅ Insert into DB with include to get the relations back
     const newLocation = await prisma.locations.create({
@@ -857,7 +961,7 @@ export const createLocation = async (req, res) => {
     });
 
     console.log("=== LOCATION CREATED ===");
-    console.log("Created location:", newLocation);
+    // console.log("Created location:", newLocation);
 
     // ✅ SERIALIZE ALL BIGINT FIELDS (including nested objects)
     const serializedLocation = {
@@ -898,7 +1002,6 @@ export const createLocation = async (req, res) => {
     res.status(500).json({ error: "Failed to create location." });
   }
 };
-
 
 
 export const updateLocationById = async (req, res) => {
@@ -1014,7 +1117,7 @@ export const updateLocationById = async (req, res) => {
       parent_id: updatedLocation.parent_id?.toString() || null,
       company_id: updatedLocation.company_id?.toString() || null,
       type_id: updatedLocation.type_id?.toString() || null,
-      facility_companiesId : updatedLocation?.facility_companiesId?.toString() || null, 
+      facility_companiesId: updatedLocation?.facility_companiesId?.toString() || null,
       images: updatedLocation.images || [], // ✅ Include images in response
     };
 
@@ -1032,7 +1135,6 @@ export const updateLocationById = async (req, res) => {
     });
   }
 };
-
 
 // ✅ Add new endpoint to delete specific images
 export const deleteLocationImage = async (req, res) => {
@@ -1274,8 +1376,6 @@ export const deleteLocationById = async (req, res) => {
 };
 
 ////////////////////// new get locations with zone apis /////////////////////
-
-
 
 export const getNearbyLocations = async (req, res) => {
   const { lat, lng, radius } = req.query;

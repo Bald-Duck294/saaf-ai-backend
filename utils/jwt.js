@@ -40,43 +40,73 @@
 //   }
 // };
 
-import jwt from "jsonwebtoken";
+// import jwt from "jsonwebtoken";
 
-const secret = "defaultSecret"; // must be SAME everywhere
+// const secret = "defaultSecret"; // must be SAME everywhere
+
+// export const generateToken = (payload) => {
+//   return jwt.sign(payload, secret);
+// };
+
+
+// export const verifyToken = (req, res, next) => {
+//   // console.log("in verify token 222");
+
+
+// // console.log(req?.authorization , "auth type");
+//   const authHeader = req.headers["authorization"]; // "Bearer <token>"
+//   // console.log(authHeader , "authheaders");
+//   // console.log(authHeader.split(" "), "auth headers");
+
+//   if (!authHeader) {
+//     return res.status(401).json({ message: "No token provided" });
+//   }
+
+//   // ✅ Extract token after "Bearer "
+//   const parts = authHeader.split(" ");
+//   if (parts.length !== 2 || parts[0] !== "Bearer") {
+//     return res.status(401).json({ message: "Malformed token" });
+//   }
+
+//   const token = parts[1]; // only the <token> part
+//   // console.log(token, "token");
+
+//   try {
+//     const decoded = jwt.verify(token, secret);
+//     // console.log(decoded, "decoded");
+//     req.user = decoded;
+//     next();
+//   } catch (err) {
+//     return res.status(403).json({ message: "Invalid token " });
+//   }
+// };
+
+
+// utils/jwt.js
+import jwt from 'jsonwebtoken';
+import dotenv from "dotenv";
+dotenv.config();
+
+
+const JWT_SECRET = process.env.JWT_SECRETS || 'your-secret-key-change-in-production';
+const JWT_EXPIRY = '24h';  // Token expires in 24 hours
+
+
+console.log('JWT_SECRET loaded:', JWT_SECRET ? 'YES' : 'NO');  // Debug log
+console.log("jwt secret", JWT_SECRET)
 
 export const generateToken = (payload) => {
-  return jwt.sign(payload, secret);
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
 };
 
-
-export const verifyToken = (req, res, next) => {
-  // console.log("in verify token 222");
-
-
-// console.log(req?.authorization , "auth type");
-  const authHeader = req.headers["authorization"]; // "Bearer <token>"
-  // console.log(authHeader , "authheaders");
-  // console.log(authHeader.split(" "), "auth headers");
-
-  if (!authHeader) {
-    return res.status(401).json({ message: "No token provided" });
-  }
-
-  // ✅ Extract token after "Bearer "
-  const parts = authHeader.split(" ");
-  if (parts.length !== 2 || parts[0] !== "Bearer") {
-    return res.status(401).json({ message: "Malformed token" });
-  }
-
-  const token = parts[1]; // only the <token> part
-  // console.log(token, "token");
+export const verifyTokenUtil = (token) => {
 
   try {
-    const decoded = jwt.verify(token, secret);
-    // console.log(decoded, "decoded");
-    req.user = decoded;
-    next();
-  } catch (err) {
-    return res.status(403).json({ message: "Invalid token " });
+    return jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    console.error('Token verification failed:', error.message);
+    return null;
   }
 };
+
+export default { generateToken, verifyTokenUtil };

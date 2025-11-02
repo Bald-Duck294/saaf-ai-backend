@@ -25,10 +25,10 @@ export const getAllAssignments = async (req, res) => {
   try {
     // Fetch assignments with locations
 
-    const { company_id } = req.query;
+    const { company_id, role_id } = req.query;
     let whereClause = {};
 
-
+    console.log(req.query, "req query");
     if (company_id) {
       // this approch  replace the entire where calsue object 
       // if more than one fiter use  whereClause.company_id = company_id
@@ -37,6 +37,9 @@ export const getAllAssignments = async (req, res) => {
       }
     }
 
+    if (role_id) {
+      whereClause.role_id = parseInt(role_id)
+    }
 
 
     const assignments = await prisma.cleaner_assignments.findMany({
@@ -362,6 +365,9 @@ export const createAssignment = async (req, res) => {
   try {
     const { cleaner_user_id, company_id, location_ids, status } = req.body;
 
+    console.log(req.body, "assignment create req body")
+    console.log('after req.body ');
+
     // --- Validation ---
     if (
       !cleaner_user_id ||
@@ -431,6 +437,8 @@ export const createAssignment = async (req, res) => {
     const result = await prisma.cleaner_assignments.createMany({
       data: assignmentsToCreate,
     });
+
+    console.log(result, "result");
 
     // Prepare response message
     const skippedCount = locations.length - locationsToAssign.length;
@@ -598,15 +606,16 @@ export const deleteAssignment = async (req, res) => {
 export const createAssignmentsForLocation = async (req, res) => {
   console.log("in create assignments for location", req.body);
   try {
-    const { location_id, cleaner_user_ids, company_id, status } = req.body;
-
+    const { location_id, cleaner_user_ids, company_id, status, role_id } = req.body;
+    console.log(req.body, "req.body");
     // --- Validation ---
     if (
       !location_id ||
       !company_id ||
       !cleaner_user_ids ||
       !Array.isArray(cleaner_user_ids) ||
-      cleaner_user_ids.length === 0
+      cleaner_user_ids.length === 0 ||
+      !role_id // ✅ Validate role_id
     ) {
       return res.status(400).json({
         status: "error",
@@ -660,6 +669,7 @@ export const createAssignmentsForLocation = async (req, res) => {
       company_id: BigInt(company_id),
       type_id: location.type_id,
       location_id: location.id,
+      role_id: role_id, // ✅ Store role_id
       status: status || "assigned",
     }));
 
@@ -700,9 +710,10 @@ export const createAssignmentsForLocation = async (req, res) => {
 export const getAssignmentsByLocation = async (req, res) => {
   try {
     const { location_id } = req.params;
-    const { company_id } = req.query;
+    const { company_id, role_id } = req.query;
 
     console.log('Fetching assignments for location:', location_id);
+    console.log(req.query, "query");
 
     if (!location_id) {
       return res.status(400).json({
@@ -716,8 +727,14 @@ export const getAssignmentsByLocation = async (req, res) => {
       location_id: BigInt(location_id)
     };
 
+
+
     if (company_id) {
       whereClause.company_id = BigInt(company_id);
+    }
+
+    if (role_id) {
+      whereClause.role_id = parseInt(role_id)
     }
 
     // Fetch assignments with user details

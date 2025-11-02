@@ -3,6 +3,7 @@ import axios from "axios";
 import FormData from "form-data";
 import fs from "fs";
 import path from "path";
+import RBACFilterService from "../utils/rbacFilterService.js";
 
 // =========================================================
 // 1️⃣ GET all cleaner reviews (with filters)
@@ -11,6 +12,15 @@ import path from "path";
 // const BASE_URL = process.env.BASE_URL || "https://safai-index-backend.onrender.com";
 
 export async function getCleanerReview(req, res) {
+
+  const user = req.user
+
+  console.log(req.query, "query form the get cleaner user")
+  if (!user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+
   console.log("request made from get cleaner reviews");
 
   const { cleaner_user_id, status, date, company_id } = req.query;
@@ -20,12 +30,18 @@ export async function getCleanerReview(req, res) {
   try {
     const whereClause = {};
 
+    const roleFilter = await RBACFilterService.getLocationFilter(user, "cleaner_activity");
+
+    Object.assign(whereClause, roleFilter);
+
     if (cleaner_user_id) {
       whereClause.cleaner_user_id = BigInt(cleaner_user_id);
     }
     if (company_id) {
       whereClause.company_id = company_id
     }
+
+
 
     if (status) {
       whereClause.status = status;
@@ -44,6 +60,8 @@ export async function getCleanerReview(req, res) {
       };
     }
 
+    console.log(whereClause, "cleaner-review , finla where clause ")
+
     const reviews = await prisma.cleaner_review.findMany({
       where: whereClause,
       include: {
@@ -60,7 +78,7 @@ export async function getCleanerReview(req, res) {
         },
         company: true  // Include all company fields
       },
-       orderBy: {
+      orderBy: {
         created_at: 'desc'  // 'desc' for newest first, 'asc' for oldest first
       }
     });
@@ -97,7 +115,7 @@ export async function getCleanerReview(req, res) {
 
     // ✅ Serialize all review data
     const serializedReviews = reviews.map(review => safeSerialize(review));
-    console.log('befor serilize', serializedReviews);
+    // console.log('befor serilize', serializedReviews);
     // const serialized = reviews.map((r) => {
     //   const safeReview = {};
     //   for (const [key, value] of Object.entries(r)) {
@@ -108,6 +126,7 @@ export async function getCleanerReview(req, res) {
 
     // console.log(serialized, "serilized data")
     // console.log(serialized.length, "data");
+    console.log(serializedReviews, "serilized reviews")
     res.json(serializedReviews);
   } catch (err) {
     console.error("Fetch Cleaner Reviews Error:", err);
@@ -117,8 +136,6 @@ export async function getCleanerReview(req, res) {
     });
   }
 }
-
-
 
 
 export const getCleanerReviewsById = async (req, res) => {
@@ -402,7 +419,7 @@ export const getCleanerReviewsByLocationId = async (req, res) => {
       total_reviews: serializedReviews.length,
       completed_reviews: serializedReviews.filter(r => r.status === 'completed').length,
       ongoing_reviews: serializedReviews.filter(r => r.status === 'ongoing').length,
-      average_score: serializedReviews.length > 0 
+      average_score: serializedReviews.length > 0
         ? (serializedReviews.reduce((sum, r) => sum + (parseFloat(r.score) || 0), 0) / serializedReviews.length).toFixed(2)
         : null,
       latest_review: serializedReviews[0] || null

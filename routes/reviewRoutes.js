@@ -101,6 +101,8 @@ import express from "express";
 import prisma from "../config/prismaClient.mjs";
 import axios from "axios";
 import FormData from "form-data";
+import { verifyToken } from "../middlewares/authMiddleware.js"; // Add this import
+import RBACFilterService from "../utils/rbacFilterService.js";
 // import { upload, processAndUploadImages } from "../middleware/imageUpload.js";
 import { upload, processAndUploadImages } from "../middlewares/imageUpload.js";
 
@@ -611,7 +613,7 @@ reviewRoutes.post(
           description: body.description || "",
           toilet_id: body.toilet_id ? BigInt(body.toilet_id) : null,
           images: imageUrls, // Store Cloudinary URLs
-          company_id : body?.companyId
+          company_id: body?.companyId
         },
       });
 
@@ -707,12 +709,121 @@ reviewRoutes.post(
 // });
 
 
-// ----------- GET /api/reviews/ --------------
-reviewRoutes.get("/", async (req, res) => {
-  try {
-    const { toilet_id, limit = 50 } = req.query;
+// // ----------- GET /api/reviews/ --------------
+// reviewRoutes.get("/", async (req, res) => {
+//   try {
+//     const { toilet_id, limit = 50 } = req.query;
 
-    const whereClause = toilet_id ? { toilet_id: BigInt(toilet_id) } : {};
+//     console.log(req.body, "from get user-review")
+//     console.log(req.query , "query form user-review")
+//     const whereClause = toilet_id ? { toilet_id: BigInt(toilet_id) } : {};
+
+//     const user_reviews = await prisma.user_review.findMany({
+//       where: whereClause,
+//       orderBy: { created_at: "desc" },
+//       take: parseInt(limit),
+//     });
+
+//     console.log(`Found ${user_reviews.length} reviews`);
+
+//     // Fetch locations for all reviews with toilet_ids
+//     const toiletIds = user_reviews
+//       .map(review => review.toilet_id)
+//       .filter(id => id !== null);
+
+//     const locations = await prisma.locations.findMany({
+//       where: {
+//         id: { in: toiletIds }
+//       }
+//     });
+
+//     // Create a map for quick lookup
+//     const locationMap = new Map(
+//       locations.map(loc => [loc.id.toString(), normalizeBigInt(loc)])
+//     );
+
+//     // Attach location to each review
+//     const reviewsWithLocations = user_reviews.map(review => {
+//       const normalizedReview = normalizeBigInt(review);
+//       const locationData = review.toilet_id
+//         ? locationMap.get(review.toilet_id.toString())
+//         : null;
+
+//       return {
+//         ...normalizedReview,
+//         location: locationData || null
+//       };
+//     });
+
+//     // console.log(reviewsWithLocations, "review data")
+//     res.json({
+//       success: true,
+//       data: reviewsWithLocations,
+//       count: reviewsWithLocations.length
+//     });
+
+//   } catch (error) {
+//     console.error("Error fetching reviews:", error);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch user reviews"
+//     });
+//   }
+// });
+
+
+
+reviewRoutes.get("/", verifyToken, async (req, res) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Keep toilet_id and limit separate as requested
+    const { toilet_id, limit = 50, company_id, status, date } = req.query;
+
+    console.log(req.query, "query from user-review");
+    console.log(company_id, "company_id from get user review");
+
+    // Build where clause with RBAC filter
+    const whereClause = {};
+
+    // Apply RBAC location filter (same as cleaner-review)
+    const roleFilter = await RBACFilterService.getLocationFilter(user, "user_activity");
+    Object.assign(whereClause, roleFilter);
+
+    // Add company_id filter if provided
+    if (company_id) {
+      whereClause.company_id = company_id;
+    }
+
+    // Add toilet_id filter if provided (keep separate as requested)
+    if (toilet_id) {
+      whereClause.toilet_id = BigInt(toilet_id);
+    }
+
+    // Add status filter if provided
+    if (status) {
+      whereClause.status = status;
+    }
+
+    // Add date filter if provided
+    if (date) {
+      const startDate = new Date(date);
+      startDate.setUTCHours(0, 0, 0, 0);
+
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 1);
+
+      whereClause.created_at = {
+        gte: startDate,
+        lt: endDate,
+      };
+    }
+
+    console.log(whereClause, "user-review final where clause");
 
     const user_reviews = await prisma.user_review.findMany({
       where: whereClause,
@@ -722,7 +833,7 @@ reviewRoutes.get("/", async (req, res) => {
 
     console.log(`Found ${user_reviews.length} reviews`);
 
-    // Fetch locations for all reviews with toilet_ids
+    // Fetch locations for all reviews with toilet_ids (OLD WAY - kept as requested)
     const toiletIds = user_reviews
       .map(review => review.toilet_id)
       .filter(id => id !== null);
@@ -733,14 +844,40 @@ reviewRoutes.get("/", async (req, res) => {
       }
     });
 
+    // Use safeSerialize instead of normalizeBigInt
+    const safeSerialize = (obj) => {
+      if (obj === null || obj === undefined) return obj;
+
+      // Handle BigInt
+      if (typeof obj === 'bigint') return obj.toString();
+
+      // Handle Date objects BEFORE generic object handling
+      if (obj instanceof Date) return obj.toISOString();
+
+      // Handle Arrays
+      if (Array.isArray(obj)) return obj.map(safeSerialize);
+
+      // Handle generic objects (but after Date check)
+      if (typeof obj === 'object') {
+        const serialized = {};
+        for (const [key, value] of Object.entries(obj)) {
+          serialized[key] = safeSerialize(value);
+        }
+        return serialized;
+      }
+
+      // Return primitives as-is
+      return obj;
+    };
+
     // Create a map for quick lookup
     const locationMap = new Map(
-      locations.map(loc => [loc.id.toString(), normalizeBigInt(loc)])
+      locations.map(loc => [loc.id.toString(), safeSerialize(loc)])
     );
 
-    // Attach location to each review
+    // Attach location to each review (SAME STRUCTURE - no changes)
     const reviewsWithLocations = user_reviews.map(review => {
-      const normalizedReview = normalizeBigInt(review);
+      const normalizedReview = safeSerialize(review);
       const locationData = review.toilet_id
         ? locationMap.get(review.toilet_id.toString())
         : null;
@@ -751,6 +888,9 @@ reviewRoutes.get("/", async (req, res) => {
       };
     });
 
+    console.log(reviewsWithLocations, "review data");
+
+    // SAME RESPONSE STRUCTURE - no changes
     res.json({
       success: true,
       data: reviewsWithLocations,
@@ -761,7 +901,8 @@ reviewRoutes.get("/", async (req, res) => {
     console.error("Error fetching reviews:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to fetch user reviews"
+      error: "Failed to fetch user reviews",
+      detail: error.message
     });
   }
 });

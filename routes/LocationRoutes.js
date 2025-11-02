@@ -12,13 +12,13 @@ import {
   toggleStatusToilet
 } from "../controller/LocationsController.js";
 import { upload, processAndUploadImages } from "../middlewares/imageUpload.js"
-
+import { verifyToken } from "../middlewares/authMiddleware.js";
 console.log('in get location rutes');
 const getLocationRoutes = express.Router();
 
 // getLocationRoutes.get("/getUsers", getUser);
 // getLocationRoutes.get('/getLocations' , getLocation);
-getLocationRoutes.get("/", getAllToilets);
+getLocationRoutes.get("/", verifyToken, getAllToilets);
 // getLocationRoutes.post("/", createLocation);
 
 getLocationRoutes.get("/zones", getZonesWithToilets);
@@ -26,7 +26,7 @@ getLocationRoutes.get('/nearby', getNearbyLocations);
 getLocationRoutes.get("/:id", getToiletById);
 getLocationRoutes.get("/search", getSearchToilet);
 getLocationRoutes.delete("/:id/image", deleteLocationImage);
-getLocationRoutes.post('/status/:id', toggleStatusToilet) 
+getLocationRoutes.post('/status/:id', toggleStatusToilet)
 // Add this route to your locations routes
 getLocationRoutes.delete('/:id', deleteLocationById);
 

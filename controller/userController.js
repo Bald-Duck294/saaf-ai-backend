@@ -31,7 +31,7 @@ export async function getUser(req, res) {
     res.json(usersWithStringIds);
   } catch (err) {
     console.error(err);
-    res.status(500).send({msg: "Error fetching users", err});
+    res.status(500).send({ msg: "Error fetching users", err });
   }
 }
 
@@ -152,12 +152,6 @@ export async function getUserById(req, res) {
       include: {
         role: true,
         companies: true,
-        location_assignments: {
-          where: { is_active: true },
-          include: {
-            location: true
-          }
-        }
       }
     });
 
@@ -193,19 +187,19 @@ export async function getUserById(req, res) {
       } : null,
 
       // Location assignments
-      location_assignments: user.location_assignments?.map(assignment => ({
-        id: assignment.id.toString(),
-        location_id: assignment.location_id.toString(),
-        user_id: assignment.user_id.toString(),
-        is_active: assignment.is_active,
-        assigned_at: assignment.assigned_at,
-        location: assignment.location ? {
-          id: assignment.location.id.toString(),
-          name: assignment.location.name,
-          latitude: assignment.location.latitude,
-          longitude: assignment.location.longitude
-        } : null
-      })) || []
+      // location_assignments: user.location_assignments?.map(assignment => ({
+      //   id: assignment.id.toString(),
+      //   location_id: assignment.location_id.toString(),
+      //   user_id: assignment.user_id.toString(),
+      //   is_active: assignment.is_active,
+      //   assigned_at: assignment.assigned_at,
+      //   location: assignment.location ? {
+      //     id: assignment.location.id.toString(),
+      //     name: assignment.location.name,
+      //     latitude: assignment.location.latitude,
+      //     longitude: assignment.location.longitude
+      //   } : null
+      // })) || []
     };
 
     console.log('User found:', safeUser.name);
@@ -338,13 +332,13 @@ export async function getUserById(req, res) {
 
 export const createUser = async (req, res) => {
   console.log('in create user', req.body);
-  
+
   try {
     const { password, location_ids = [], company_id, ...data } = req.body;
     // Extract company_id from the body, not query
 
     console.log(company_id, "company_id from body");
-    
+
     if (!password) {
       return res.status(400).json({ message: "Password is required" });
     }
@@ -371,26 +365,26 @@ export const createUser = async (req, res) => {
         password: hashedPassword,
         company_id: BigInt(company_id), // Use company_id from body
         birthdate: data?.birthdate ? new Date(data.birthdate) : null,
-        ...(location_ids.length > 0 && {
-          location_assignments: {
-            create: location_ids.map((locId) => ({
-              location_id: BigInt(locId),
-            })),
-          },
-        }),
+        // ...(location_ids.length > 0 && {
+        //   location_assignments: {
+        //     create: location_ids.map((locId) => ({
+        //       location_id: BigInt(locId),
+        //     })),
+        //   },
+        // }),
       },
       include: {
-        location_assignments: {
-          include: {
-            location: {
-              select: {
-                id: true,
-                name: true,
-                // address: true,
-              }
-            }
-          }
-        }
+        // location_assignments: {
+        //   include: {
+        //     location: {
+        //       select: {
+        //         id: true,
+        //         name: true,
+        //         // address: true,
+        //       }
+        //     }
+        //   }
+        // }
       }
     });
 
@@ -401,18 +395,18 @@ export const createUser = async (req, res) => {
       ...newUser,
       id: newUser.id.toString(),
       company_id: newUser.company_id?.toString(),
-      location_assignments: newUser.location_assignments?.map(assignment => ({
-        ...assignment,
-        location_id: assignment.location_id.toString(),
-        user_id: assignment.user_id.toString(),
-        location: assignment.location ? {
-          ...assignment.location,
-          id: assignment.location.id.toString()
-        } : null
-      }))
+      // location_assignments: newUser.location_assignments?.map(assignment => ({
+      //   ...assignment,
+      //   location_id: assignment.location_id.toString(),
+      //   user_id: assignment.user_id.toString(),
+      //   location: assignment.location ? {
+      //     ...assignment.location,
+      //     id: assignment.location.id.toString()
+      //   } : null
+      // }))
     });
 
-    console.log('Serialized user data:', safeUser);
+    // console.log('Serialized user data:', safeUser);
     res.status(201).json(safeUser);
 
   } catch (error) {
@@ -456,58 +450,96 @@ export const createUser = async (req, res) => {
 
 
 // --- UPDATE USER ---
-// Handles PUT /api/users/:id
 export const updateUser = async (req, res) => {
+    const userId = BigInt(req.params.id);
+    try {
+        const { password, location_ids, ...data } = req.body;
 
-  const userId = BigInt(req.params.id);
-  try {
-    const { password, location_ids, ...data } = req.body;
+        if (password) {
+            data.password = await bcrypt.hash(password, 10);
+        }
+        if (data.birthdate) {
+            data.birthdate = new Date(data.birthdate);
+        }
 
-    if (password) {
-      data.password = await bcrypt.hash(password, 10);
-    }
-    if (data.birthdate) {
-      data.birthdate = new Date(data.birthdate);
-    }
-    const updatedUser = await prisma.$transaction(async (tx) => {
-      const user = await tx.users.update({ where: { id: userId }, data });
+        const updatedUser = await prisma.$transaction(async (tx) => {
+            // ✅ Update user info
+            const user = await tx.users.update({ 
+                where: { id: userId }, 
+                data 
+            });
 
-      if (location_ids) { // Only update locations if the array is provided
-        await tx.locationAssignment.updateMany({
-          where: { user_id: userId },
-          data: { is_active: false },
+            // ✅ Handle location assignments if provided
+            if (location_ids !== undefined) { // Only update if explicitly provided
+                // First, deactivate all existing assignments for this user
+                await tx.cleaner_assignments.updateMany({
+                    where: { cleaner_user_id: userId },
+                    data: { status: "unassigned" }, // Mark as unassigned instead of deleting
+                });
+
+                // Then, create/update new assignments
+                if (Array.isArray(location_ids) && location_ids.length > 0) {
+                    for (const locId of location_ids) {
+                        await tx.cleaner_assignments.upsert({
+                            where: { 
+                                // ✅ Use composite key from your schema
+                                id: BigInt(locId) // If updating existing assignment
+                            },
+                            update: { 
+                                status: "assigned",
+                                updated_at: new Date()
+                            },
+                            create: { 
+                                cleaner_user_id: userId,
+                                location_id: BigInt(locId),
+                                company_id: BigInt(data.company_id), // ✅ Add company_id
+                                name: data.name, // ✅ Required field
+                                status: "assigned",
+                                assigned_on: new Date(),
+                            },
+                        });
+                    }
+                }
+            }
+
+            return user;
         });
 
-        if (location_ids.length > 0) {
-          for (const locId of location_ids) {
-            await tx.locationAssignment.upsert({
-              where: { location_id_user_id: { user_id: userId, location_id: BigInt(locId) } },
-              update: { is_active: true },
-              create: { user_id: userId, location_id: BigInt(locId) },
+        // ✅ Serialize BigInt values
+        const safeUser = JSON.parse(
+            JSON.stringify(updatedUser, (key, value) =>
+                typeof value === 'bigint' ? value.toString() : value
+            )
+        );
+
+        res.status(200).json({
+            ...safeUser,
+            birthdate: safeUser?.birthdate ? new Date(safeUser.birthdate) : null,
+            message: "User updated successfully"
+        });
+
+    } catch (error) {
+        console.error("Error in updateUser:", error);
+
+        if (error.code === 'P2002') {
+            return res.status(409).json({ 
+                message: `User with this ${error.meta.target.join(', ')} already exists.` 
             });
-          }
         }
-      }
-      return user;
-    });
 
-    const safeUser = JSON.parse(JSON.stringify(updatedUser, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    ));
+        if (error.code === 'P2025') {
+            return res.status(404).json({ 
+                message: "User or assignment not found" 
+            });
+        }
 
-
-    res.status(200).json({
-      ...safeUser,
-      birthdate: (safeUser?.birthdate) ? new Date(safeUser?.birthdate) : null
-    });
-  } catch (error) {
-    if (error.code === 'P2002') {
-      return res.status(409).json({ message: `User with this ${error.meta.target.join(', ')} already exists.` });
+        res.status(500).json({ 
+            message: "Error updating user", 
+            error: error.message 
+        });
     }
-    console.log(error, "error in update users");
-    res.status(500).json({ message: "Error updating user", error: error.message });
-  }
-}
+};
+
 // --- DELETE USER ---
 // Handles DELETE /api/users/:id
 
