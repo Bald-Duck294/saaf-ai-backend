@@ -444,7 +444,7 @@ export const getToiletById = async (req, res) => {
       },
     });
 
-    console.log('single location', location)
+    // console.log('single location', location)
     if (!location) {
       return res.status(404).json({ message: "Toilet not found" });
     }
@@ -501,7 +501,7 @@ export const getToiletById = async (req, res) => {
       parent_id: location.parent_id?.toString() || null,
       company_id: location.company_id?.toString() || null,
       type_id: location.type_id?.toString() || null,
-      facility_companiesId: location?.facility_companiesId?.toString || null,
+      facility_companiesId: location?.facility_companiesId?.toString() || null,
       hygiene_scores: location.hygiene_scores.map(score => ({
         ...score,
         id: score.id?.toString() || null,

@@ -24,7 +24,7 @@ import { serializeBigInt } from "../utils/serializer.js";
 export const getAllAssignments = async (req, res) => {
   try {
     // Fetch assignments with locations
-
+    console.log('in get all assignment');
     const { company_id, role_id } = req.query;
     let whereClause = {};
 
@@ -32,15 +32,14 @@ export const getAllAssignments = async (req, res) => {
     if (company_id) {
       // this approch  replace the entire where calsue object 
       // if more than one fiter use  whereClause.company_id = company_id
-      whereClause = {
-        company_id: company_id
-      }
+      whereClause.company_id = company_id;
     }
 
-    if (role_id) {
+    if (role_id && role_id !== 'undefined') {
       whereClause.role_id = parseInt(role_id)
     }
 
+    console.log("final where cause", whereClause)
 
     const assignments = await prisma.cleaner_assignments.findMany({
       where: whereClause,
@@ -68,6 +67,7 @@ export const getAllAssignments = async (req, res) => {
       user: userMap[a.cleaner_user_id.toString()] || null,
     }));
 
+    // console.log(assignmentsWithUsers, "assigned  users ");
     res.status(200).json({
       status: "success",
       message: "Assignments retrieved successfully.",
