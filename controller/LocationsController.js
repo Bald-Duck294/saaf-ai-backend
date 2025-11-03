@@ -251,7 +251,7 @@ export const getAllToilets = async (req, res) => {
     //   // If role filter doesn't set company, add user's company
     //   whereClause.company_id = user.company_id;
     // }
-    else{
+    else {
       whereClause.company_id = company_id
     }
 
@@ -1005,6 +1005,7 @@ export const createLocation = async (req, res) => {
 
 
 export const updateLocationById = async (req, res) => {
+  console.log('in update location')
   try {
     const locationId = req.params.id;
     const companyId = req.query.companyId;
@@ -1088,6 +1089,7 @@ export const updateLocationById = async (req, res) => {
       options: finalOptions, // ✅ Use processed options
       metadata: updateData.metadata || existingLocation.metadata,
       images: finalImages, // ✅ Now properly defined
+      facility_companiesId: updateData?.facility_companiesId || existingLocation?.facility_companiesId
     };
 
     // Update parent_id and type_id if provided
@@ -1121,6 +1123,7 @@ export const updateLocationById = async (req, res) => {
       images: updatedLocation.images || [], // ✅ Include images in response
     };
 
+    console.log(result, "result");
     res.json({
       success: true,
       message: "Location updated successfully",

@@ -126,7 +126,7 @@ export async function getCleanerReview(req, res) {
 
     // console.log(serialized, "serilized data")
     // console.log(serialized.length, "data");
-    console.log(serializedReviews, "serilized reviews")
+    // console.log(serializedReviews, "serilized reviews")
     res.json(serializedReviews);
   } catch (err) {
     console.error("Fetch Cleaner Reviews Error:", err);
