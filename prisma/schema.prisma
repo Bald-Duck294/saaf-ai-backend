@@ -36,6 +36,7 @@ model companies {
   registered_users   registered_users[]
   users              users[]
   facility_companies facility_companies[]
+  shifts             shifts[]
 }
 
 model hygiene_scores {
@@ -83,7 +84,7 @@ model locations {
   companies              companies?               @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   locations              locations?               @relation("locationsTolocations", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_locations        locations[]              @relation("locationsTolocations")
-  location_types         location_types?          @relation(fields: [type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  location_types         location_types?          @relation(fields: [type_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
   facility_companies     facility_companies?      @relation(fields: [facility_companiesId], references: [id])
   facility_companiesId   BigInt?
 
@@ -100,7 +101,7 @@ model location_types {
   updated_at           DateTime?        @default(now()) @db.Timestamp(6)
   is_toilet            Boolean?
   deletedAt            DateTime?
-  companies            companies?       @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  companies            companies?       @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   location_types       location_types?  @relation("location_typesTolocation_types", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_location_types location_types[] @relation("location_typesTolocation_types")
   locations            locations[]
@@ -158,6 +159,7 @@ model users {
   sessions                          sessions[]
   companies                         companies?            @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   role                              Role?                 @relation(fields: [role_id], references: [id])
+  shift_assignments                 shift_assignments[]
 }
 
 model configurations {
@@ -222,26 +224,27 @@ model spatial_ref_sys {
 }
 
 model cleaner_assignments {
-  id              BigInt     @id @default(autoincrement())
-  name            String     @db.VarChar(255)
+  id              BigInt    @id @default(autoincrement())
+  name            String    @db.VarChar(255)
   cleaner_user_id BigInt
   company_id      BigInt
   type_id         BigInt?
   location_id     BigInt?
-  status          String?    @default("unassigned") @db.VarChar(50)
-  assigned_on     DateTime?  @default(now()) @db.Timestamp(6)
-  released_on     DateTime?  @db.Timestamp(6)
-  created_at      DateTime?  @default(now()) @db.Timestamp(6)
-  updated_at      DateTime?  @default(now()) @db.Timestamp(6)
+  status          String?   @default("unassigned") @db.VarChar(50)
+  assigned_on     DateTime? @default(now()) @db.Timestamp(6)
+  released_on     DateTime? @db.Timestamp(6)
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  updated_at      DateTime? @default(now()) @db.Timestamp(6)
   supervisor_id   BigInt?
   role_id         Int?
-  cleaner_user    users      @relation("CleanerUser", fields: [cleaner_user_id], references: [id])
-  supervisor      users?     @relation("Supervisor", fields: [supervisor_id], references: [id])
-  locations       locations? @relation(fields: [location_id], references: [id], onDelete: Cascade, map: "fk_assignments_location")
+  deletedAt       DateTime?
+
+  cleaner_user users      @relation("CleanerUser", fields: [cleaner_user_id], references: [id])
+  supervisor   users?     @relation("Supervisor", fields: [supervisor_id], references: [id])
+  locations    locations? @relation(fields: [location_id], references: [id], onDelete: Cascade, map: "fk_assignments_location")
 
   role Role? @relation(fields: [role_id], references: [id])
 }
-
 
 model Role {
   id                  Int                   @id @default(autoincrement())
@@ -254,8 +257,8 @@ model Role {
   registered_users    registered_users[]
   users               users[]
   cleaner_assignments cleaner_assignments[]
+  shiftAssignments    shift_assignments[]
 }
-
 
 model registered_users {
   id                 BigInt    @id @default(autoincrement())
@@ -317,9 +320,65 @@ model facility_companies {
   company_id BigInt
   created_at DateTime  @default(now()) @db.Timestamp(6)
   updated_at DateTime  @updatedAt @db.Timestamp(6)
-  deletedAt  DateTime? // Soft delete
+  deletedAt  DateTime?
 
   // Relations
   company   companies   @relation(fields: [company_id], references: [id], onDelete: Cascade)
   locations locations[]
+}
+
+model shifts {
+  id BigInt @id @default(autoincrement())
+
+  // Basic Info
+  name        String? @db.VarChar(255)
+  description String? @db.Text
+  status      Boolean @default(true) // active, inactive, archived
+
+  // Time Fields
+  startTime     DateTime? @db.Time
+  endTime       DateTime? @db.Time
+  durationHours Float?
+
+  // Validity
+  effectiveFrom  DateTime? @default(now())
+  effectiveUntil DateTime?
+
+  // Audit Fields
+  createdAt DateTime? @default(now()) @db.Timestamp(6)
+  updatedAt DateTime? @updatedAt @db.Timestamp(6)
+  deletedAt DateTime?
+
+  // Relations - Company Specific
+  company_id BigInt?
+  company    companies? @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  // Users assigned to this shift
+  assignments shift_assignments[]
+}
+
+// ✅ Bridge Table - Tracks shift assignments over time
+model shift_assignments {
+  id BigInt @id @default(autoincrement())
+
+  // Relations
+  shiftId BigInt
+  shift   shifts @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  user_id BigInt
+  user    users  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role_id Int?
+
+  // Assignment Period
+  startDate DateTime // When assignment starts
+  endDate   DateTime? // When assignment ends (null = ongoing)
+  status    String    @default("active") @db.VarChar(50) // active, inactive, completed, paused
+
+  notes String? @db.Text
+  role  Role?   @relation(fields: [role_id], references: [id])
+
+  // Audit Fields
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 }

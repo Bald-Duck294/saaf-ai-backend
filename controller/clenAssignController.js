@@ -1,29 +1,14 @@
 import prisma from "../config/prismaClient.mjs";
+import RBACFilterService from "../utils/rbacFilterService.js";
 import { serializeBigInt } from "../utils/serializer.js";
 
-/**
- * GET all cleaner assignments
-//  */
-// export const getAllAssignments = async (req, res) => {
-//   try {
-//     const assignments = await prisma.cleaner_assignments.findMany({
-//       include: { locations: true },
-//       orderBy: { id: "asc" },
-//     });
-//     res.status(200).json({
-//       status: "success",
-//       message: "Assignments retrieved successfully.",
-//       data: serializeBigInt(assignments),
-//     });
-//   } catch (error) {
-//     console.error("Error fetching assignments:", error);
-//     res.status(500).json({ status: "error", message: "Internal Server Error" });
-//   }
-// };
 
 export const getAllAssignments = async (req, res) => {
   try {
+
+    const user = req.user;
     // Fetch assignments with locations
+    console.log('hitting get assignment')
     console.log('in get all assignment');
     const { company_id, role_id } = req.query;
     let whereClause = {};
@@ -39,6 +24,15 @@ export const getAllAssignments = async (req, res) => {
       whereClause.role_id = parseInt(role_id)
     }
 
+
+    const filteredLocationIds = await RBACFilterService.getLocationFilter(user, "cleaner_activity")
+    console.log(filteredLocationIds, "filteredlocations ")
+
+    whereClause = {
+      ...whereClause,
+      ...filteredLocationIds
+    }
+
     console.log("final where cause", whereClause)
 
     const assignments = await prisma.cleaner_assignments.findMany({
@@ -48,7 +42,7 @@ export const getAllAssignments = async (req, res) => {
     });
 
     console.log(company_id, "company_id");
-    console.log(assignments, "in ass")
+    // console.log(assignments, "in ass")
     // Collect user IDs
     const userIds = assignments.map((a) => a.cleaner_user_id);
 
@@ -79,42 +73,7 @@ export const getAllAssignments = async (req, res) => {
   }
 };
 
-/**
- * GET single assignment by id
- */
-// export const getAssignmentById = async (req, res) => {
 
-//   try {
-//     const id = parseInt(req.params.id);
-//     if (isNaN(id)) {
-//       return res.status(400).json({ status: "error", message: "Invalid ID provided." });
-//     }
-
-//     console.log(id , "id")
-
-//     const assignment = await prisma.cleaner_assignments.findMany({
-//       where: { cleaner_user_id : id},
-//       include: { locations: true },
-//     });
-
-//     if (!assignment) {
-//       return res.status(404).json({ status: "error", message: "Assignment not found." });
-//     }
-
-//     res.status(200).json({
-//       status: "success",
-//       message: "Assignment retrieved successfully.",
-//       data: serializeBigInt(assignment), // Corrected from 'assignments' to 'assignment'
-//     });
-//   } catch (error) {
-//     console.error("Error fetching assignment:", error);
-//     res.status(500).json({ status: "error", message: "Internal Server Error" });
-//   }
-// };
-
-/**
- * GET assignments by cleaner_user_id
- */
 export const getAssignmentByCleanerUserId = async (req, res) => {
   try {
     // const cleanerUserId = parseInt(req.params.id);
@@ -155,8 +114,6 @@ export const getAssignmentByCleanerUserId = async (req, res) => {
     res.status(500).json({ status: "error", message: "Internal Server Error" });
   }
 };
-
-
 
 // controller/assignmentController.js (or wherever your assignment controllers are)
 
@@ -253,112 +210,6 @@ export const getAssignmentById = async (req, res) => {
   }
 };
 
-
-/**
- * CREATE new assignment
- */
-// export const createAssignment = async (req, res) => {
-//   try {
-//     const { name, cleaner_user_id, company_id, type_id, location_id, status } =
-//       req.body;
-
-//     // Basic validation
-//     if (!name || !cleaner_user_id || !company_id) {
-//         return res.status(400).json({ status: "error", message: "Missing required fields: name, cleaner_user_id, company_id." });
-//     }
-
-//     const newAssignment = await prisma.cleaner_assignments.create({
-//       data: {
-//         name,
-//         cleaner_user_id: parseInt(cleaner_user_id),
-//         company_id: parseInt(company_id),
-//         type_id: type_id ? parseInt(type_id) : null,
-//         location_id: location_id ? parseInt(location_id) : null,
-//         status: status || "unassigned",
-//       },
-//     });
-
-//     res.status(201).json({
-//         status: "success",
-//         message: "Assignment created successfully.",
-//         data: serializeBigInt(newAssignment),
-//     });
-//   } catch (error) {
-//     console.error("Error creating assignment:", error);
-//     res.status(500).json({ status: "error", message: "Internal Server Error" });
-//   }
-// };
-
-
-
-// export const createAssignment = async (req, res) => {
-//   console.log("in create assignmets");
-//   try {
-//     // Expect 'location_ids' to be an array of strings/numbers
-//     const { cleaner_user_id, company_id, location_ids, status } = req.body;
-
-//     // --- Validation ---
-//     if (
-//       !cleaner_user_id ||
-//       !company_id ||
-//       !location_ids ||
-//       !Array.isArray(location_ids) ||
-//       location_ids.length === 0
-//     ) {
-//       return res
-//         .status(400)
-//         .json({
-//           status: "error",
-//           message:
-//             "Missing required fields: cleaner_user_id, company_id, and a non-empty array of location_ids.",
-//         });
-//     }
-
-//     // --- Data Preparation ---
-//     // Fetch the locations to get their actual names and type_ids
-//     const locations = await prisma.locations.findMany({
-//       where: {
-//         id: { in: location_ids.map((id) => BigInt(id)) },
-//       },
-//       select: { id: true, name: true, type_id: true },
-//     });
-
-//     // Ensure all requested locations were found
-//     if (locations.length !== location_ids.length) {
-//       return res
-//         .status(404)
-//         .json({
-//           status: "error",
-//           message: "One or more selected locations could not be found.",
-//         });
-//     }
-
-//     // Prepare the data for a bulk-creation database query
-//     const assignmentsToCreate = locations.map((location) => ({
-//       name: location.name, // Use the location's name as the assignment name
-//       cleaner_user_id: BigInt(cleaner_user_id),
-//       company_id: BigInt(company_id),
-//       type_id: location.type_id, // Use the type_id from the location
-//       location_id: location.id,
-//       status: status || "unassigned",
-//     }));
-
-//     // --- Database Operation ---
-//     // Use `createMany` for an efficient bulk insert
-//     const result = await prisma.cleaner_assignments.createMany({
-//       data: assignmentsToCreate,
-//     });
-
-//     res.status(201).json({
-//       status: "success",
-//       message: `${result.count} assignments created successfully.`,
-//       data: result,
-//     });
-//   } catch (error) {
-//     console.error("Error creating assignments:", error);
-//     res.status(500).json({ status: "error", message: "Internal Server Error" });
-//   }
-// };
 
 export const createAssignment = async (req, res) => {
   console.log("in create assignments");
@@ -778,6 +629,7 @@ export const getAssignmentsByLocation = async (req, res) => {
       },
       orderBy: { assigned_on: 'desc' }
     });
+
 
     // Serialize BigInt
     const serializedAssignments = assignments.map(assignment => ({

@@ -10,11 +10,12 @@ import {
     getAssignmentsByCleanerId
 } from "../controller/clenAssignController.js";
 
+import { verifyToken } from '../middlewares/authMiddleware.js'
 const clen_assign_router = express.Router();
 
 // CRUD routes
 // ✅ Fixed routing structure
-clen_assign_router.get("/assignments", getAllAssignments);                    // Get all assignments
+clen_assign_router.get("/assignments", verifyToken, getAllAssignments);                    // Get all assignments
 clen_assign_router.get("/assignments/cleaner/:id", getAssignmentById);                // Get single assignment by ID
 clen_assign_router.get("/assignments/:cleaner_user_id", getAssignmentByCleanerUserId); // Get by cleaner
 clen_assign_router.post("/assignments", createAssignment);                    // Create new assignment

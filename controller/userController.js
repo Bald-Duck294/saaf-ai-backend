@@ -1,24 +1,69 @@
 import prisma from "../config/prismaClient.mjs";
 import bcrypt from "bcryptjs";
 import express from 'express';
+import RBACFilterService from "../utils/rbacFilterService.js";
+
+// withoud any role id 
+// export async function getUser(req, res) {
+
+//   try {
+
+//     const { companyId } = req.query;
+
+//     console.log(companyId, "companyId")
+//     const users = await prisma.users.findMany({
+//       where: {
+//         company_id: companyId,
+//       },
+
+//       include: {
+//         role: true
+//       }
+//     });
+//     // console.log(users, "users");
+
+//     // Convert BigInt to string
+//     const usersWithStringIds = users.map((user) => ({
+//       ...user,
+//       id: user.id.toString(),
+//       company_id: user.company_id?.toString() || null,
+//     }));
+
+//     console.log(usersWithStringIds, "ids");
+//     res.json(usersWithStringIds);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send({ msg: "Error fetching users", err });
+//   }
+// }
+
+
 
 export async function getUser(req, res) {
-
   try {
-
     const { companyId } = req.query;
+    const currentUser = req.user; // From auth middleware
+    console.log(companyId, "companyId");
+    console.log(currentUser, "current user");
 
-    console.log(companyId, "companyId")
+    // Step 1: Get role-based filter
+    const userFilter = await RBACFilterService.getUserFilter(currentUser, 'getUser');
+
+    // Step 2: Build complete where clause
+    const whereClause = {
+      company_id: companyId,
+      ...userFilter  // Merge filter from getUserFilter
+    };
+
+    console.log(whereClause, "final where clause");
+
+    // Step 3: Fetch filtered users
     const users = await prisma.users.findMany({
-      where: {
-        company_id: companyId,
-      },
-
+      where: whereClause,
       include: {
         role: true
       }
     });
-    // console.log(users, "users");
 
     // Convert BigInt to string
     const usersWithStringIds = users.map((user) => ({
@@ -27,14 +72,14 @@ export async function getUser(req, res) {
       company_id: user.company_id?.toString() || null,
     }));
 
-    console.log(usersWithStringIds, "ids");
+    console.log(usersWithStringIds, "filtered users");
     res.json(usersWithStringIds);
+
   } catch (err) {
     console.error(err);
     res.status(500).send({ msg: "Error fetching users", err });
   }
 }
-
 
 // export async function getUserById(req, res) {
 //   try {
@@ -451,93 +496,93 @@ export const createUser = async (req, res) => {
 
 // --- UPDATE USER ---
 export const updateUser = async (req, res) => {
-    const userId = BigInt(req.params.id);
-    try {
-        const { password, location_ids, ...data } = req.body;
+  const userId = BigInt(req.params.id);
+  try {
+    const { password, location_ids, ...data } = req.body;
 
-        if (password) {
-            data.password = await bcrypt.hash(password, 10);
-        }
-        if (data.birthdate) {
-            data.birthdate = new Date(data.birthdate);
-        }
-
-        const updatedUser = await prisma.$transaction(async (tx) => {
-            // ✅ Update user info
-            const user = await tx.users.update({ 
-                where: { id: userId }, 
-                data 
-            });
-
-            // ✅ Handle location assignments if provided
-            if (location_ids !== undefined) { // Only update if explicitly provided
-                // First, deactivate all existing assignments for this user
-                await tx.cleaner_assignments.updateMany({
-                    where: { cleaner_user_id: userId },
-                    data: { status: "unassigned" }, // Mark as unassigned instead of deleting
-                });
-
-                // Then, create/update new assignments
-                if (Array.isArray(location_ids) && location_ids.length > 0) {
-                    for (const locId of location_ids) {
-                        await tx.cleaner_assignments.upsert({
-                            where: { 
-                                // ✅ Use composite key from your schema
-                                id: BigInt(locId) // If updating existing assignment
-                            },
-                            update: { 
-                                status: "assigned",
-                                updated_at: new Date()
-                            },
-                            create: { 
-                                cleaner_user_id: userId,
-                                location_id: BigInt(locId),
-                                company_id: BigInt(data.company_id), // ✅ Add company_id
-                                name: data.name, // ✅ Required field
-                                status: "assigned",
-                                assigned_on: new Date(),
-                            },
-                        });
-                    }
-                }
-            }
-
-            return user;
-        });
-
-        // ✅ Serialize BigInt values
-        const safeUser = JSON.parse(
-            JSON.stringify(updatedUser, (key, value) =>
-                typeof value === 'bigint' ? value.toString() : value
-            )
-        );
-
-        res.status(200).json({
-            ...safeUser,
-            birthdate: safeUser?.birthdate ? new Date(safeUser.birthdate) : null,
-            message: "User updated successfully"
-        });
-
-    } catch (error) {
-        console.error("Error in updateUser:", error);
-
-        if (error.code === 'P2002') {
-            return res.status(409).json({ 
-                message: `User with this ${error.meta.target.join(', ')} already exists.` 
-            });
-        }
-
-        if (error.code === 'P2025') {
-            return res.status(404).json({ 
-                message: "User or assignment not found" 
-            });
-        }
-
-        res.status(500).json({ 
-            message: "Error updating user", 
-            error: error.message 
-        });
+    if (password) {
+      data.password = await bcrypt.hash(password, 10);
     }
+    if (data.birthdate) {
+      data.birthdate = new Date(data.birthdate);
+    }
+
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      // ✅ Update user info
+      const user = await tx.users.update({
+        where: { id: userId },
+        data
+      });
+
+      // ✅ Handle location assignments if provided
+      if (location_ids !== undefined) { // Only update if explicitly provided
+        // First, deactivate all existing assignments for this user
+        await tx.cleaner_assignments.updateMany({
+          where: { cleaner_user_id: userId },
+          data: { status: "unassigned" }, // Mark as unassigned instead of deleting
+        });
+
+        // Then, create/update new assignments
+        if (Array.isArray(location_ids) && location_ids.length > 0) {
+          for (const locId of location_ids) {
+            await tx.cleaner_assignments.upsert({
+              where: {
+                // ✅ Use composite key from your schema
+                id: BigInt(locId) // If updating existing assignment
+              },
+              update: {
+                status: "assigned",
+                updated_at: new Date()
+              },
+              create: {
+                cleaner_user_id: userId,
+                location_id: BigInt(locId),
+                company_id: BigInt(data.company_id), // ✅ Add company_id
+                name: data.name, // ✅ Required field
+                status: "assigned",
+                assigned_on: new Date(),
+              },
+            });
+          }
+        }
+      }
+
+      return user;
+    });
+
+    // ✅ Serialize BigInt values
+    const safeUser = JSON.parse(
+      JSON.stringify(updatedUser, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+      )
+    );
+
+    res.status(200).json({
+      ...safeUser,
+      birthdate: safeUser?.birthdate ? new Date(safeUser.birthdate) : null,
+      message: "User updated successfully"
+    });
+
+  } catch (error) {
+    console.error("Error in updateUser:", error);
+
+    if (error.code === 'P2002') {
+      return res.status(409).json({
+        message: `User with this ${error.meta.target.join(', ')} already exists.`
+      });
+    }
+
+    if (error.code === 'P2025') {
+      return res.status(404).json({
+        message: "User or assignment not found"
+      });
+    }
+
+    res.status(500).json({
+      message: "Error updating user",
+      error: error.message
+    });
+  }
 };
 
 // --- DELETE USER ---

@@ -18,6 +18,7 @@ import registered_users_router from "./routes/registerUserApi.js";
 import dotenv from "dotenv";
 import reportRouter from "./routes/reportsRoutes.js";
 import facility_company_router from "./routes/facilityCompanyRoutes.js";
+import shift_router from "./routes/shiftRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -96,6 +97,7 @@ app.use("/api/cleaner-reviews", clean_review_Router);
 app.use("/api/users", userRouter);
 app.use("/api/companies", companyRouter);
 app.use("/api/role", roleRouter);
+app.use("/api/shifts", shift_router);
 
 app.use("/uploads", express.static("uploads"));
 
