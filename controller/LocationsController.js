@@ -449,6 +449,7 @@ export const getToiletById = async (req, res) => {
       return res.status(404).json({ message: "Toilet not found" });
     }
 
+    console.log(location, 'locations 56');
     const reviews = await prisma.user_review.findMany({
       where: { toilet_id: Number(locId) },
     });
@@ -459,7 +460,7 @@ export const getToiletById = async (req, res) => {
       id: item.id?.toString() || null,
     }));
 
-    console.log(intReviews, "int review")
+    // console.log(intReviews, "int review")
 
     // ✅ UPDATED RATING CALCULATION - Same logic as getAllToilets
     const hygieneScores = location.hygiene_scores.map(hs => Number(hs.score));
@@ -495,73 +496,108 @@ export const getToiletById = async (req, res) => {
     }
 
     // ✅ Serialize all BigInt fields to strings
+    // const result = {
+    //   ...location,
+    //   id: location.id?.toString() || null,
+    //   parent_id: location.parent_id?.toString() || null,
+    //   company_id: location.company_id?.toString() || null,
+    //   type_id: location.type_id?.toString() || null,
+    //   facility_companiesId: location?.facility_companiesId?.toString() || null,
+    //   hygiene_scores: location.hygiene_scores.map(score => ({
+    //     ...score,
+    //     id: score.id?.toString() || null,
+    //     created_by: score.created_by?.toString() || null,
+    //   })),
+
+    //   cleaner_assignments: location.cleaner_assignments.map(assignment => ({
+    //     ...assignment,
+    //     id: assignment.id?.toString() || null,
+    //     cleaner_user_id: assignment.cleaner_user_id?.toString() || null,
+    //     company_id: assignment.company_id?.toString() || null,
+    //     type_id: assignment.type_id?.toString() || null,
+    //     location_id: assignment.location_id?.toString() || null,
+    //     supervisor_id: assignment.supervisor_id?.toString() || null,
+
+    //     cleaner_user: assignment.cleaner_user ? {
+    //       ...assignment.cleaner_user,
+    //       id: assignment.cleaner_user.id?.toString() || null,
+    //     } : null,
+
+    //     supervisor: assignment.supervisor ? {
+    //       ...assignment.supervisor,
+    //       id: assignment.supervisor.id?.toString() || null,
+    //     } : null,
+    //   })),
+
+    //   images: location.images || [],
+    //   averageRating,
+    //   ratingCount,
+    //   ReviewData: intReviews,
+
+    //   ratingSource: INCLUDE_USER_REVIEWS_IN_RATING
+    //     ? 'hygiene_and_user_reviews'
+    //     : 'hygiene_only',
+    //   ratingScale: '1-10',
+
+    //   assignedCleaners: location.cleaner_assignments.map(assignment => ({
+    //     id: assignment.id?.toString() || null,
+    //     name: assignment.name,
+    //     status: assignment.status,
+    //     assignedOn: assignment.assigned_on,
+    //     releasedOn: assignment.released_on,
+    //     createdAt: assignment.created_at,
+    //     updatedAt: assignment.updated_at,
+    //     cleaner: assignment.cleaner_user ? {
+    //       id: assignment.cleaner_user.id?.toString() || null,
+    //       name: assignment.cleaner_user.name,
+    //       phone: assignment.cleaner_user.phone,
+    //       email: assignment.cleaner_user.email,
+    //     } : null,
+    //     supervisor: assignment.supervisor ? {
+    //       id: assignment.supervisor.id?.toString() || null,
+    //       name: assignment.supervisor.name,
+    //       phone: assignment.supervisor.phone,
+    //       email: assignment.supervisor.email,
+    //     } : null,
+    //   }))
+    // };
+
+
     const result = {
       ...location,
-      id: location.id?.toString() || null,
-      parent_id: location.parent_id?.toString() || null,
-      company_id: location.company_id?.toString() || null,
-      type_id: location.type_id?.toString() || null,
-      facility_companiesId: location?.facility_companiesId?.toString() || null,
-      hygiene_scores: location.hygiene_scores.map(score => ({
-        ...score,
-        id: score.id?.toString() || null,
-        created_by: score.created_by?.toString() || null,
-      })),
-
-      cleaner_assignments: location.cleaner_assignments.map(assignment => ({
-        ...assignment,
-        id: assignment.id?.toString() || null,
-        cleaner_user_id: assignment.cleaner_user_id?.toString() || null,
-        company_id: assignment.company_id?.toString() || null,
-        type_id: assignment.type_id?.toString() || null,
-        location_id: assignment.location_id?.toString() || null,
-        supervisor_id: assignment.supervisor_id?.toString() || null,
-
-        cleaner_user: assignment.cleaner_user ? {
-          ...assignment.cleaner_user,
-          id: assignment.cleaner_user.id?.toString() || null,
-        } : null,
-
-        supervisor: assignment.supervisor ? {
-          ...assignment.supervisor,
-          id: assignment.supervisor.id?.toString() || null,
-        } : null,
-      })),
-
+      hygiene_scores: location.hygiene_scores.map(score => ({ ...score })),
+      cleaner_assignments: location.cleaner_assignments.map(assignment => ({ ...assignment })),
       images: location.images || [],
       averageRating,
       ratingCount,
       ReviewData: intReviews,
-
-      ratingSource: INCLUDE_USER_REVIEWS_IN_RATING
-        ? 'hygiene_and_user_reviews'
-        : 'hygiene_only',
+      ratingSource: INCLUDE_USER_REVIEWS_IN_RATING ? 'hygiene_and_user_reviews' : 'hygiene_only',
       ratingScale: '1-10',
-
       assignedCleaners: location.cleaner_assignments.map(assignment => ({
-        id: assignment.id?.toString() || null,
+        id: assignment.id,
         name: assignment.name,
         status: assignment.status,
         assignedOn: assignment.assigned_on,
         releasedOn: assignment.released_on,
         createdAt: assignment.created_at,
         updatedAt: assignment.updated_at,
-        cleaner: assignment.cleaner_user ? {
-          id: assignment.cleaner_user.id?.toString() || null,
-          name: assignment.cleaner_user.name,
-          phone: assignment.cleaner_user.phone,
-          email: assignment.cleaner_user.email,
-        } : null,
-        supervisor: assignment.supervisor ? {
-          id: assignment.supervisor.id?.toString() || null,
-          name: assignment.supervisor.name,
-          phone: assignment.supervisor.phone,
-          email: assignment.supervisor.email,
-        } : null,
+        cleaner: assignment.cleaner_user ? { ...assignment.cleaner_user } : null,
+        supervisor: assignment.supervisor ? { ...assignment.supervisor } : null,
       }))
     };
 
-    res.json(result);
+    // Use a custom replacer function in JSON.stringify
+    const jsonString = JSON.stringify(result, (key, value) => {
+      if (typeof value === 'bigint') {
+        return value.toString();
+      }
+      return value;
+    });
+
+    res.json(JSON.parse(jsonString));
+
+    // console.log(result, 'result 34');
+    // res.json(result);
   } catch (err) {
     console.error('Error in getToiletById:', err);
     res.status(500).json({

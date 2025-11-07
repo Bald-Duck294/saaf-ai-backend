@@ -4,3 +4,8 @@ node_modules
 
 /generated/prisma
 controller/cleanerReviewController - Copy.js
+dumshiftController.js
+dumconfigRoutes.js
+softDeleteMiddleware.js
+configurationTemplates.js
+
