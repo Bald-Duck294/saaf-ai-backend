@@ -78,6 +78,7 @@ model locations {
   dist                   String?
   status                 Boolean?
   user_review_score      Float?
+  no_of_photos           Int?
   cleaner_assignments    cleaner_assignments[]
   cleaner_reviews        cleaner_review[]         @relation("LocationReviews")
   hygiene_scores         hygiene_scores[]

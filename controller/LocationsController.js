@@ -444,6 +444,7 @@ export const getToiletById = async (req, res) => {
       },
     });
 
+    console.log(location, "locationd 3838");
     // console.log('single location', location)
     if (!location) {
       return res.status(404).json({ message: "Toilet not found" });
@@ -593,6 +594,7 @@ export const getToiletById = async (req, res) => {
       }
       return value;
     });
+
 
     res.json(JSON.parse(jsonString));
 
@@ -890,14 +892,15 @@ export const createLocation = async (req, res) => {
     const {
       name, parent_id, type_id, latitude, longitude, options,
       address, pincode, state, city, dist, status,
-      facility_company_id // ✅ ADD THIS LINE
+      facility_company_id, no_of_photos // 
     } = req.body;
     const { companyId } = req.query;
 
     console.log("=== CREATE LOCATION DEBUG ===");
     console.log("Company ID:", companyId);
-    console.log("Facility Company ID:", facility_company_id); // ✅ ADD THIS
+    console.log("Facility Company ID:", facility_company_id);
     console.log("Raw body data:", req.body);
+    console.log("Number of WC:", no_of_photos);
 
     // Get uploaded image URLs
     const imageUrls = req.uploadedFiles?.images || [];
@@ -927,6 +930,9 @@ export const createLocation = async (req, res) => {
     const parsedLatitude = latitude && latitude !== 'null' ? parseFloat(latitude) : null;
     const parsedLongitude = longitude && longitude !== 'null' ? parseFloat(longitude) : null;
 
+    const parsedNoOfPhotos = no_of_photos !== undefined && no_of_photos !== null && no_of_photos !== ''
+      ? parseInt(no_of_photos, 10)
+      : null;
     // Parse status
     const parsedStatus = status !== undefined && status !== null
       ? status === 'true' || status === true
@@ -949,6 +955,7 @@ export const createLocation = async (req, res) => {
       city: city || null,
       dist: dist || null,
       status: parsedStatus,
+      no_of_photos: parsedNoOfPhotos || null
     };
 
     // ✅ Add relations using connect syntax
@@ -978,6 +985,8 @@ export const createLocation = async (req, res) => {
     }
 
     console.log("=== FINAL DATA TO SAVE ===");
+    // console.log("Created no_of_photos:", newLocation.no_of_photos); // ✅ VERIFY SAVED VALUE
+
     // console.log(JSON.stringify({
     //   ...locationData,
     //   location_types: locationData.location_types ? `connect to ID ${type_id}` : undefined,
@@ -1125,7 +1134,8 @@ export const updateLocationById = async (req, res) => {
       options: finalOptions, // ✅ Use processed options
       metadata: updateData.metadata || existingLocation.metadata,
       images: finalImages, // ✅ Now properly defined
-      facility_companiesId: updateData?.facility_companiesId || existingLocation?.facility_companiesId
+      facility_companiesId: updateData?.facility_companiesId || existingLocation?.facility_companiesId,
+      no_of_photos: updateData?.no_of_photos || existingLocation?.no_of_photos
     };
 
     // Update parent_id and type_id if provided
