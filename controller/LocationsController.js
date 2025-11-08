@@ -280,6 +280,11 @@ export const getAllToilets = async (req, res) => {
         hygiene_scores: {
           select: { score: true },
         },
+        location_types: {
+          select: {
+            name: true
+          }
+        }
       },
     });
 

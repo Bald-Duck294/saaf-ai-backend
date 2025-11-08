@@ -75,8 +75,8 @@ export const createLocationType = async (req, res) => {
       data: {
         name: name.trim(),
         parent_id: parent_id ? BigInt(parent_id) : null,
-        is_toilet: Boolean(is_toilet), // Ensure it's a boolean
-        company_id: BigInt(companyId), // ✅ Use companyId from query parameter
+        is_toilet: Boolean(is_toilet),
+        company_id: BigInt(companyId),
       },
     });
 

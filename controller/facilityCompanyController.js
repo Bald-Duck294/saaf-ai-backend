@@ -2,11 +2,8 @@
 import { serializeBigInt } from "../utils/serializer.js";
 import prisma from "../config/prismaClient.mjs";
 import { json } from "express";
-/**
- * Get all facility companies
- * By default returns only active (status = true)
- * Pass include_inactive=true to get all
- */
+
+
 export const getAllFacilityCompanies = async (req, res) => {
     try {
         const { company_id, include_inactive, facility_company_id } = req.query;
@@ -246,9 +243,7 @@ export const createFacilityCompany = async (req, res) => {
     }
 };
 
-/**
- * Update facility company
- */
+
 export const updateFacilityCompany = async (req, res) => {
     try {
         const { id } = req.params;
@@ -379,9 +374,7 @@ export const updateFacilityCompany = async (req, res) => {
     }
 };
 
-/**
- * Delete facility company (Soft delete)
- */
+
 export const deleteFacilityCompany = async (req, res) => {
     try {
         const { id } = req.params;
@@ -439,9 +432,7 @@ export const deleteFacilityCompany = async (req, res) => {
     }
 };
 
-/**
- * Toggle facility company status (Active/Inactive)
- */
+
 export const toggleFacilityCompanyStatus = async (req, res) => {
     try {
         const { id } = req.params;
