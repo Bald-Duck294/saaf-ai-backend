@@ -39,7 +39,8 @@ const allowedOrigins = [
   "https://safai-index.vercel.app",
   "https://saaf-ai.vercel.app",
   "https://safaiindex.vercel.app",
-  "https://safai-form.vercel.app"
+  "https://safai-form.vercel.app",
+  "https://safai-index-livid.vercel.app/"
 ];
 
 // app.use(
