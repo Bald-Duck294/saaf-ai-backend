@@ -239,7 +239,7 @@ export const getToiletById = async (req, res) => {
 
           },
           orderBy: { assigned_on: "desc" },
-          take : 5
+          take: 5
         }
       },
     });
@@ -680,6 +680,10 @@ export const updateLocationById = async (req, res) => {
       finalImages = newImageUrls;
     }
 
+
+    const parsedNoOfPhotos = updateData.no_of_photos !== undefined && updateData.no_of_photos !== null && updateData.no_of_photos !== ''
+      ? parseInt(updateData?.no_of_photos, 10)
+      : null;
     // ✅ Handle options properly (same as create)
     let finalOptions = existingLocation.options || {};
 
@@ -708,18 +712,38 @@ export const updateLocationById = async (req, res) => {
       }
     }
 
-    console.log("Final options for update:", finalOptions);
+    // console.log("Final options for update:", finalOptions);
 
     // ✅ Prepare update data with proper parsing
+    // const dataToUpdate = {
+    //   name: updateData.name || existingLocation.name,
+    //   latitude: updateData.latitude && updateData.latitude !== 'null' ? parseFloat(updateData.latitude) : existingLocation.latitude,
+    //   longitude: updateData.longitude && updateData.longitude !== 'null' ? parseFloat(updateData.longitude) : existingLocation.longitude,
+    //   options: finalOptions, // ✅ Use processed options
+    //   metadata: updateData.metadata || existingLocation.metadata,
+    //   images: finalImages, // ✅ Now properly defined
+    //   facility_companiesId: updateData?.facility_companiesId || existingLocation?.facility_companiesId,
+    //   no_of_photos: parsedNoOfPhotos || existingLocation?.no_of_photos
+    // };
+
+
     const dataToUpdate = {
       name: updateData.name || existingLocation.name,
       latitude: updateData.latitude && updateData.latitude !== 'null' ? parseFloat(updateData.latitude) : existingLocation.latitude,
       longitude: updateData.longitude && updateData.longitude !== 'null' ? parseFloat(updateData.longitude) : existingLocation.longitude,
-      options: finalOptions, // ✅ Use processed options
+
+
+      address: updateData.address !== undefined ? updateData.address : existingLocation.address,
+      city: updateData.city !== undefined ? updateData.city : existingLocation.city,
+      state: updateData.state !== undefined ? updateData.state : existingLocation.state,
+      dist: updateData.dist !== undefined ? updateData.dist : existingLocation.dist,
+      pincode: updateData.pincode !== undefined ? updateData.pincode : existingLocation.pincode,
+
+      options: finalOptions,
       metadata: updateData.metadata || existingLocation.metadata,
-      images: finalImages, // ✅ Now properly defined
+      images: finalImages,
       facility_companiesId: updateData?.facility_companiesId || existingLocation?.facility_companiesId,
-      no_of_photos: updateData?.no_of_photos || existingLocation?.no_of_photos
+      no_of_photos: parsedNoOfPhotos || existingLocation?.no_of_photos
     };
 
     // Update parent_id and type_id if provided
