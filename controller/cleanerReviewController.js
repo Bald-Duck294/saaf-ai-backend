@@ -414,6 +414,7 @@ export const getCleanerReviewsByLocationId = async (req, res) => {
     // Serialize all review data
     const serializedReviews = reviews.map(review => safeSerialize(review));
 
+    console.log(serializedReviews, "serilize review ");
     // Calculate stats
     const stats = {
       total_reviews: serializedReviews.length,
