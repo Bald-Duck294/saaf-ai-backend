@@ -61,7 +61,21 @@ export async function getUser(req, res) {
     const users = await prisma.users.findMany({
       where: whereClause,
       include: {
-        role: true
+        role: true,
+        cleaner_assignments_as_cleaner: {
+          where: {
+            deletedAt: null
+          },
+          select: {
+            name: true,
+
+            locations: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
       }
     });
 
@@ -186,7 +200,7 @@ export async function getUser(req, res) {
 
 
 
-// ✅ ALTERNATIVE: Manual conversion for better control
+
 export async function getUserById(req, res) {
   try {
     const { id } = req.params;
@@ -197,12 +211,43 @@ export async function getUserById(req, res) {
       include: {
         role: true,
         companies: true,
+        cleaner_assignments_as_cleaner: {
+          where: {
+            deletedAt: null
+          },
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            assigned_on: true,
+            location_id: true,
+            locations: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                city: true,
+                state: true,
+                latitude: true,
+                longitude: true,
+                pincode: true,
+                type_id: true
+              }
+            }
+          }
+        },
       }
     });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
+    // console.log(user, "single user");
+    // console.log(JSON.stringify(user, null, 2), "single strigny useer"); // Pretty printed JSON
+
+    console.dir(user, { depth: null, colors: true });
+    console.log("--- single user ---");
 
     // ✅ Manual conversion with proper handling
     const safeUser = {
@@ -231,23 +276,23 @@ export async function getUserById(req, res) {
         description: user.companies.description
       } : null,
 
-      // Location assignments
-      // location_assignments: user.location_assignments?.map(assignment => ({
-      //   id: assignment.id.toString(),
-      //   location_id: assignment.location_id.toString(),
-      //   user_id: assignment.user_id.toString(),
-      //   is_active: assignment.is_active,
-      //   assigned_at: assignment.assigned_at,
-      //   location: assignment.location ? {
-      //     id: assignment.location.id.toString(),
-      //     name: assignment.location.name,
-      //     latitude: assignment.location.latitude,
-      //     longitude: assignment.location.longitude
-      //   } : null
-      // })) || []
+      location_assignments: user?.cleaner_assignments_as_cleaner ? user?.cleaner_assignments_as_cleaner.map((item) => (
+        ({
+          ...item,
+          id: item?.id?.toString(),
+          location_id: item?.id?.toString(),
+          locations: {
+            ...item.locations,
+            id: item?.locations?.id?.toString(),
+            type_id: item?.locations?.type_id?.toString()
+          }
+
+        }))) : null
+
     };
 
-    console.log('User found:', safeUser.name);
+    // console.log('User found:', safeUser.name);
+    console.log(safeUser, "safe usere")
     res.json(safeUser);
   } catch (err) {
     console.error('Error in getUserById:', err);

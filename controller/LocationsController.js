@@ -731,14 +731,12 @@ export const updateLocationById = async (req, res) => {
       name: updateData.name || existingLocation.name,
       latitude: updateData.latitude && updateData.latitude !== 'null' ? parseFloat(updateData.latitude) : existingLocation.latitude,
       longitude: updateData.longitude && updateData.longitude !== 'null' ? parseFloat(updateData.longitude) : existingLocation.longitude,
-
-
+      type_id: updateData?.type_id !== undefined ? updateData.type_id : existingLocation.type_id,
       address: updateData.address !== undefined ? updateData.address : existingLocation.address,
       city: updateData.city !== undefined ? updateData.city : existingLocation.city,
       state: updateData.state !== undefined ? updateData.state : existingLocation.state,
       dist: updateData.dist !== undefined ? updateData.dist : existingLocation.dist,
       pincode: updateData.pincode !== undefined ? updateData.pincode : existingLocation.pincode,
-
       options: finalOptions,
       metadata: updateData.metadata || existingLocation.metadata,
       images: finalImages,
