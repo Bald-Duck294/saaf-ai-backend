@@ -70,6 +70,11 @@ export const getAllToilets = async (req, res) => {
         hygiene_scores: {
           select: { score: true },
         },
+        cleaner_reviews: {
+          select: {
+            score: true
+          }
+        },
         location_types: {
           select: {
             id: true,
@@ -77,11 +82,19 @@ export const getAllToilets = async (req, res) => {
           }
         }
       },
+      orderBy: {
+        created_at: 'desc'
+      },
+      // take: 4
     });
 
+    // console.log("Fetched locations count:", allLocations);
+    // console.dir(allLocations[3], { depth: null });
+
+    // console.dir("all locations", { depth: null });
     // STEP 9: Format response (SAME as before)
     const result = allLocations.map((loc) => {
-      const hygieneScores = loc.hygiene_scores.map(hs => Number(hs.score));
+      const hygieneScores = loc.cleaner_reviews.map(hs => Number(hs.score));
       const ratingCount = hygieneScores.length;
 
       let averageRating = null;
@@ -89,6 +102,18 @@ export const getAllToilets = async (req, res) => {
         const sumOfScores = hygieneScores.reduce((sum, score) => sum + score, 0);
         averageRating = sumOfScores / ratingCount;
       }
+
+
+
+      //   const hygieneScores = loc.hygiene_scores.map(hs => Number(hs.score));
+      // const ratingCount = hygieneScores.length;
+
+      // let averageRating = null;
+      // if (ratingCount > 0) {
+      //   const sumOfScores = hygieneScores.reduce((sum, score) => sum + score, 0);
+      //   averageRating = sumOfScores / ratingCount;
+      // }
+
 
       return {
         ...loc,
@@ -108,7 +133,7 @@ export const getAllToilets = async (req, res) => {
       };
     });
 
-    console.log(" Get all Result count:", result.length);
+    // console.log(" Get all Result count:", result.length);
     res.json(result);  // ← Response format unchanged
 
   } catch (err) {
@@ -476,7 +501,7 @@ export const createLocation = async (req, res) => {
     const {
       name, parent_id, type_id, latitude, longitude, options,
       address, pincode, state, city, dist, status,
-      facility_company_id, no_of_photos // 
+      facility_company_id, no_of_photos, usage_category
     } = req.body;
     const { companyId } = req.query;
 
@@ -484,6 +509,7 @@ export const createLocation = async (req, res) => {
     console.log("Company ID:", companyId);
     console.log("Facility Company ID:", facility_company_id);
     console.log("Raw body data:", req.body);
+    console.log("Usage Category:", usage_category);
     console.log("Number of WC:", no_of_photos);
 
     // Get uploaded image URLs
@@ -510,6 +536,22 @@ export const createLocation = async (req, res) => {
         }
       }
     }
+
+
+    let finalUsageCategory = null;
+    if (usage_category) {
+      if (typeof usage_category === 'string') {
+        try {
+          finalUsageCategory = JSON.parse(usage_category);
+          console.log("Successfully parsed usage_category:", finalUsageCategory);
+        } catch (e) {
+          console.error("Failed to parse usage_category:", e);
+          finalUsageCategory = null;
+        }
+      } else {
+        finalUsageCategory = usage_category;
+      }
+    }
     // Parse coordinates
     const parsedLatitude = latitude && latitude !== 'null' ? parseFloat(latitude) : null;
     const parsedLongitude = longitude && longitude !== 'null' ? parseFloat(longitude) : null;
@@ -532,6 +574,7 @@ export const createLocation = async (req, res) => {
       longitude: parsedLongitude,
       metadata: {},
       options: finalOptions,
+      usage_category: finalUsageCategory,
       images: imageUrls,
       address: address || null,
       pincode: pincode || null,
@@ -542,7 +585,7 @@ export const createLocation = async (req, res) => {
       no_of_photos: parsedNoOfPhotos || null
     };
 
-    // ✅ Add relations using connect syntax
+    //  Add relations using connect syntax
     if (type_id) {
       locationData.location_types = {
         connect: { id: BigInt(type_id) }
@@ -561,7 +604,7 @@ export const createLocation = async (req, res) => {
       };
     }
 
-    // ✅ ADD FACILITY COMPANY RELATION
+    //  ADD FACILITY COMPANY RELATION
     if (facility_company_id) {
       locationData.facility_companies = {
         connect: { id: BigInt(facility_company_id) }
@@ -592,7 +635,7 @@ export const createLocation = async (req, res) => {
     console.log("=== LOCATION CREATED ===");
     // console.log("Created location:", newLocation);
 
-    // ✅ SERIALIZE ALL BIGINT FIELDS (including nested objects)
+
     const serializedLocation = {
       ...newLocation,
       id: newLocation.id.toString(),
@@ -611,7 +654,6 @@ export const createLocation = async (req, res) => {
         ...newLocation.companies,
         id: newLocation.companies.id.toString(),
       } : null,
-      // ✅ ADD FACILITY COMPANY SERIALIZATION
       facility_companies: newLocation.facility_companies ? {
         ...newLocation.facility_companies,
         id: newLocation.facility_companies.id.toString(),
@@ -663,11 +705,11 @@ export const updateLocationById = async (req, res) => {
       });
     }
 
-    // ✅ Get uploaded image URLs from middleware
+    //  Get uploaded image URLs from middleware
     const newImageUrls = req.uploadedFiles?.images || [];
     console.log("New images uploaded:", newImageUrls);
 
-    // ✅ Handle image updates
+    //  Handle image updates
     let finalImages = existingLocation.images || [];
 
     if (newImageUrls.length > 0) {
@@ -675,7 +717,7 @@ export const updateLocationById = async (req, res) => {
       finalImages = [...finalImages, ...newImageUrls];
     }
 
-    // ✅ If replace_images is true, replace all images
+    //  If replace_images is true, replace all images
     if (updateData.replace_images === 'true' || updateData.replace_images === true) {
       finalImages = newImageUrls;
     }
@@ -684,7 +726,7 @@ export const updateLocationById = async (req, res) => {
     const parsedNoOfPhotos = updateData.no_of_photos !== undefined && updateData.no_of_photos !== null && updateData.no_of_photos !== ''
       ? parseInt(updateData?.no_of_photos, 10)
       : null;
-    // ✅ Handle options properly (same as create)
+    //  Handle options properly (same as create)
     let finalOptions = existingLocation.options || {};
 
     if (updateData.options) {
@@ -727,6 +769,38 @@ export const updateLocationById = async (req, res) => {
     // };
 
 
+
+    let finalUsageCategory = existingLocation.usage_category || null;
+
+    if (updateData.usage_category !== undefined) {
+      if (updateData.usage_category === null || updateData.usage_category === '') {
+        console.log("Usage category is null or empty, setting to null");
+        finalUsageCategory = null;
+      } else if (typeof updateData.usage_category === 'string') {
+        console.log("Usage category is string, attempting to parse...");
+
+        if (updateData.usage_category === '[object Object]') {
+          console.warn("Received [object Object] string, keeping existing usage_category");
+          finalUsageCategory = existingLocation.usage_category || null;
+        } else if (updateData.usage_category === '{}') {
+          console.log("Usage category is empty {}, setting to null");
+          finalUsageCategory = null;
+        } else {
+          try {
+            finalUsageCategory = JSON.parse(updateData.usage_category);
+            console.log("Successfully parsed usage_category:", finalUsageCategory);
+          } catch (e) {
+            console.error("Failed to parse usage_category string:", updateData.usage_category, e);
+            finalUsageCategory = existingLocation.usage_category || null;
+          }
+        }
+      } else if (typeof updateData.usage_category === 'object' && updateData.usage_category !== null) {
+        console.log("Usage category is already an object:", updateData.usage_category);
+        finalUsageCategory = updateData.usage_category;
+      }
+    }
+
+    console.log("Final usage_category for update:", finalUsageCategory);
     const dataToUpdate = {
       name: updateData.name || existingLocation.name,
       latitude: updateData.latitude && updateData.latitude !== 'null' ? parseFloat(updateData.latitude) : existingLocation.latitude,
@@ -738,6 +812,7 @@ export const updateLocationById = async (req, res) => {
       dist: updateData.dist !== undefined ? updateData.dist : existingLocation.dist,
       pincode: updateData.pincode !== undefined ? updateData.pincode : existingLocation.pincode,
       options: finalOptions,
+      usage_category: finalUsageCategory,
       metadata: updateData.metadata || existingLocation.metadata,
       images: finalImages,
       facility_companiesId: updateData?.facility_companiesId || existingLocation?.facility_companiesId,
@@ -755,6 +830,7 @@ export const updateLocationById = async (req, res) => {
     console.log("Final data to update:", {
       ...dataToUpdate,
       options: JSON.stringify(dataToUpdate.options),
+      usage_category: JSON.stringify(dataToUpdate.usage_category),
       imagesCount: finalImages.length
     });
 
@@ -772,7 +848,8 @@ export const updateLocationById = async (req, res) => {
       company_id: updatedLocation.company_id?.toString() || null,
       type_id: updatedLocation.type_id?.toString() || null,
       facility_companiesId: updatedLocation?.facility_companiesId?.toString() || null,
-      images: updatedLocation.images || [], // ✅ Include images in response
+      images: updatedLocation.images || [],
+      usage_category: updatedLocation.usage_category || null,
     };
 
     console.log(result, "result");
