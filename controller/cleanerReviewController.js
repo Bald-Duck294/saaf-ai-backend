@@ -725,10 +725,6 @@ export async function completeCleanerReview(req, res) {
 }
 
 
-
-
-
-
 // At the top of your file
 // const FormData = require('form-data'); // Must import this for Node.js
 
@@ -1111,23 +1107,157 @@ async function processHygieneScoring(review, afterPhotos) {
 }
 
 
+
+// export async function updateCleanerReviewScore(req, res) {
+//   const { id } = req.params;
+//   const { score } = req.body;
+//   const user = req.user;
+//   const company_id = 24;
+//   if (!user) {
+//     return res.status(401).json({ message: "Unauthorized" });
+//   }
+
+//   // ✅ Check if user is SUPERADMIN (role_id = 1)
+//   if (user.role_id !== 1) {
+//     return res.status(403).json({
+//       message: "Forbidden - Superadmin access required"
+//     });
+//   }
+
+//   // Validate score
+//   if (score === undefined || score === null) {
+//     return res.status(400).json({ message: "Score is required" });
+//   }
+
+//   if (score < 0 || score > 10) {
+//     return res.status(400).json({ message: "Score must be between 0 and 10" });
+//   }
+
+//   try {
+//     // Get current review
+//     const existingReview = await prisma.cleaner_review.findUnique({
+//       where: { id: BigInt(id) }
+//     });
+
+//     if (!existingReview) {
+//       return res.status(404).json({ message: "Review not found" });
+//     }
+
+//     // Prepare update data
+//     const updateData = {
+//       score: parseFloat(score),
+//       is_modified: true,
+//       updated_at: new Date()
+//     };
+
+//     // ✅ Store original score if not already stored (first time modification)
+//     if (existingReview.original_score === null || existingReview.original_score === undefined) {
+//       updateData.original_score = existingReview.score;
+//     }
+
+//     // Update the review
+//     const updatedReview = await prisma.cleaner_review.update({
+//       where: { id: BigInt(id) },
+//       data: updateData,
+//       include: {
+//         cleaner_user: {
+//           select: {
+//             id: true,
+//             name: true,
+//             phone: true,
+//             email: true
+//           }
+//         },
+//         location: {
+//           select: {
+//             id: true,
+//             name: true,
+//             address: true
+//           }
+//         },
+//         company: {
+//           select: {
+//             id: true,
+//             name: true
+//           }
+//         }
+//       }
+//     });
+
+
+//     const updateHygieneScores = await prisma.hygiene_scores.udate({
+//       where: {
+//         location_id: BigInt(existingReview?.location_id),
+//         data: {
+//           score: parseFloat(score) ,
+//           is_modified : true ,
+
+//         }
+//       }
+//     })
+//     console.log(updatedReview, "updated review after score update");
+
+
+//     const safeSerialize = (obj) => {
+//       if (obj === null || obj === undefined) return obj;
+
+//       // Handle BigInt
+//       if (typeof obj === 'bigint') return obj.toString();
+
+//       // Handle Date objects BEFORE generic object handling
+//       if (obj instanceof Date) return obj.toISOString();
+
+//       // Handle Arrays
+//       if (Array.isArray(obj)) return obj.map(safeSerialize);
+
+//       // Handle generic objects (but after Date check)
+//       if (typeof obj === 'object') {
+//         const serialized = {};
+//         for (const [key, value] of Object.entries(obj)) {
+//           serialized[key] = safeSerialize(value);
+//         }
+//         return serialized;
+//       }
+
+//       // Return primitives as-is
+//       return obj;
+//     };
+
+//     const serializedReview = safeSerialize(updatedReview);
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Score updated successfully",
+//       data: serializedReview
+//     });
+
+
+//   } catch (error) {
+//     console.error("Error updating score:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to update score",
+//       error: error.message
+//     });
+//   }
+// }
+
+
 export async function updateCleanerReviewScore(req, res) {
   const { id } = req.params;
   const { score } = req.body;
   const user = req.user;
-  const company_id = 24;
+
   if (!user) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  // ✅ Check if user is SUPERADMIN (role_id = 1)
   if (user.role_id !== 1) {
     return res.status(403).json({
       message: "Forbidden - Superadmin access required"
     });
   }
 
-  // Validate score
   if (score === undefined || score === null) {
     return res.status(400).json({ message: "Score is required" });
   }
@@ -1137,7 +1267,6 @@ export async function updateCleanerReviewScore(req, res) {
   }
 
   try {
-    // Get current review
     const existingReview = await prisma.cleaner_review.findUnique({
       where: { id: BigInt(id) }
     });
@@ -1146,63 +1275,140 @@ export async function updateCleanerReviewScore(req, res) {
       return res.status(404).json({ message: "Review not found" });
     }
 
-    // Prepare update data
-    const updateData = {
-      score: parseFloat(score),
-      is_modified: true,
-      updated_at: new Date()
-    };
+    let existingHygieneScore = null;
 
-    // ✅ Store original score if not already stored (first time modification)
-    if (existingReview.original_score === null || existingReview.original_score === undefined) {
-      updateData.original_score = existingReview.score;
+    // ✅ Strategy 1: Use hygiene_score_id if available (preferred)
+    if (existingReview.hygiene_score_id) {
+      console.log("Using hygiene_score_id for lookup");
+      existingHygieneScore = await prisma.hygiene_scores.findUnique({
+        where: { id: existingReview.hygiene_score_id }
+      });
+    }
+    // ✅ Strategy 2: Fallback - Match by score and same-day creation
+    else {
+      console.log("Fallback: Matching by score and date");
+
+      // Get the date range for the same day as the review
+      const reviewDate = new Date(existingReview.created_at);
+      const startOfDay = new Date(reviewDate);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(reviewDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Find hygiene score with matching:
+      // 1. Same location
+      // 2. Same score (or very close)
+      // 3. Created on same day
+      // 4. Within a few minutes of review creation
+      const reviewCreatedAt = new Date(existingReview.created_at);
+      const fiveMinutesBefore = new Date(reviewCreatedAt.getTime() - 5 * 60 * 1000);
+      const fiveMinutesAfter = new Date(reviewCreatedAt.getTime() + 5 * 60 * 1000);
+
+      existingHygieneScore = await prisma.hygiene_scores.findFirst({
+        where: {
+          location_id: existingReview.location_id,
+          score: existingReview.score, // Match exact score
+          created_at: {
+            gte: fiveMinutesBefore, // Within 5 minutes before
+            lte: fiveMinutesAfter   // Within 5 minutes after
+          }
+        },
+        orderBy: {
+          created_at: 'asc' // Get the earliest match
+        }
+      });
+
+      // If no match within 5 minutes, try same day with score match
+      if (!existingHygieneScore) {
+        console.log("No match within 5 minutes, trying same day");
+        existingHygieneScore = await prisma.hygiene_scores.findFirst({
+          where: {
+            location_id: existingReview.location_id,
+            score: existingReview.score,
+            created_at: {
+              gte: startOfDay,
+              lte: endOfDay
+            }
+          },
+          orderBy: {
+            created_at: 'asc'
+          }
+        });
+      }
+
+      // ✅ If we found a match, update the review with the hygiene_score_id
+      if (existingHygieneScore) {
+        console.log(`Found hygiene score via fallback: ${existingHygieneScore.id}`);
+        // Update the review to store the hygiene_score_id for future lookups
+        await prisma.cleaner_review.update({
+          where: { id: BigInt(id) },
+          data: { hygiene_score_id: existingHygieneScore.id }
+        });
+      }
     }
 
-    // Update the review
-    const updatedReview = await prisma.cleaner_review.update({
-      where: { id: BigInt(id) },
-      data: updateData,
-      include: {
-        cleaner_user: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            email: true
-          }
-        },
-        location: {
-          select: {
-            id: true,
-            name: true,
-            address: true
-          }
-        },
-        company: {
-          select: {
-            id: true,
-            name: true
+    if (!existingHygieneScore) {
+      return res.status(404).json({
+        message: "Related hygiene score not found. Unable to match by score and date."
+      });
+    }
+
+    // Prepare update data for cleaner_review
+    const reviewUpdateData = {
+      score: parseFloat(score),
+      is_modified: true,
+      updated_at: existingReview.updated_at
+    };
+
+    if (existingReview.original_score === null ||
+      existingReview.original_score === undefined) {
+      reviewUpdateData.original_score = existingReview.score;
+    }
+
+    // Prepare update data for hygiene_scores
+    const hygieneUpdateData = {
+      score: parseFloat(score),
+      is_modified: true,
+      updated_at: existingHygieneScore.updated_at
+    };
+
+    if (existingHygieneScore.original_score === null ||
+      existingHygieneScore.original_score === undefined) {
+      hygieneUpdateData.original_score = existingHygieneScore.score;
+    }
+
+    // ✅ Use transaction to update both tables atomically
+    const [updatedReview, updatedHygieneScore] = await prisma.$transaction([
+      prisma.cleaner_review.update({
+        where: { id: BigInt(id) },
+        data: reviewUpdateData,
+        include: {
+          cleaner_user: {
+            select: { id: true, name: true, phone: true, email: true }
+          },
+          location: {
+            select: { id: true, name: true, address: true }
+          },
+          company: {
+            select: { id: true, name: true }
           }
         }
-      }
-    });
+      }),
+      prisma.hygiene_scores.update({
+        where: { id: existingHygieneScore.id },
+        data: hygieneUpdateData
+      })
+    ]);
 
-    console.log(updatedReview, "updated review after score update");
-
+    console.log("Updated review:", updatedReview.id);
+    console.log("Updated hygiene score:", updatedHygieneScore.id);
 
     const safeSerialize = (obj) => {
       if (obj === null || obj === undefined) return obj;
-
-      // Handle BigInt
       if (typeof obj === 'bigint') return obj.toString();
-
-      // Handle Date objects BEFORE generic object handling
       if (obj instanceof Date) return obj.toISOString();
-
-      // Handle Arrays
       if (Array.isArray(obj)) return obj.map(safeSerialize);
-
-      // Handle generic objects (but after Date check)
       if (typeof obj === 'object') {
         const serialized = {};
         for (const [key, value] of Object.entries(obj)) {
@@ -1210,19 +1416,17 @@ export async function updateCleanerReviewScore(req, res) {
         }
         return serialized;
       }
-
-      // Return primitives as-is
       return obj;
     };
 
-    const serializedReview = safeSerialize(updatedReview);
-
     return res.status(200).json({
       success: true,
-      message: "Score updated successfully",
-      data: serializedReview
+      message: "Score updated successfully in both tables",
+      data: {
+        review: safeSerialize(updatedReview),
+        hygieneScore: safeSerialize(updatedHygieneScore)
+      }
     });
-
 
   } catch (error) {
     console.error("Error updating score:", error);
