@@ -449,10 +449,8 @@ const convertBigIntToString = (obj) => {
 
 
 
-
-
-
 export const getDailyTaskReport = async (req, res) => {
+    console.log('in get daily task report')
     try {
         const { company_id, start_date, end_date, location_id, cleaner_id, status_filter } = req.query;
 
@@ -475,6 +473,10 @@ export const getDailyTaskReport = async (req, res) => {
             }
         }
 
+        const company = await prisma.companies.findUnique({
+            where: { id: BigInt(company_id) },
+            select: { name: true }
+        });
         // 1. Fetch all matching cleaner review tasks
         const tasks = await prisma.cleaner_review.findMany({
             where: whereClause,
@@ -486,7 +488,17 @@ export const getDailyTaskReport = async (req, res) => {
         });
 
         if (tasks.length === 0) {
-            return res.status(200).json({ status: "success", message: "No tasks found", data: [], count: 0, metadata: {} });
+            return res.status(200).json({
+                status: "success", message: "No tasks found", data: [], count: 0, metadata: {
+                    report_type: "Daily Task Report",
+                    generated_on: new Date().toISOString(),
+                    organization: company.name, // ✅ Include organization name even when no tasks
+                    date_range: { start: start_date || "Beginning", end: end_date || "Now" },
+                    total_tasks: 0,
+                    completed_tasks: 0,
+                    ongoing_tasks: 0,
+                }
+            });
         }
 
         // 2. Get all unique location IDs from the tasks
@@ -545,12 +557,14 @@ export const getDailyTaskReport = async (req, res) => {
         const reportMetadata = {
             report_type: "Daily Task Report",
             generated_on: new Date().toISOString(),
+            organization: company.name,
             date_range: { start: start_date || "Beginning", end: end_date || "Now" },
             total_tasks,
             completed_tasks,
             ongoing_tasks,
         };
 
+        console.log(reportMetadata, "metadata")
         res.status(200).json({
             status: "success",
             message: "Daily task report generated successfully",

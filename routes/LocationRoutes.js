@@ -18,7 +18,9 @@ const getLocationRoutes = express.Router();
 
 // getLocationRoutes.get("/getUsers", getUser);
 // getLocationRoutes.get('/getLocations' , getLocation);
+getLocationRoutes.get("/loc", getAllToilets);
 getLocationRoutes.get("/", verifyToken, getAllToilets);
+
 // getLocationRoutes.post("/", createLocation);
 
 getLocationRoutes.get("/zones", getZonesWithToilets);

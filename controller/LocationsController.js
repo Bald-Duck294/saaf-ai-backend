@@ -63,12 +63,30 @@ export const getAllToilets = async (req, res) => {
 
     console.log("Final where clause:", whereClause);
 
+
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
     // STEP 8: Query database with merged filters
     const allLocations = await prisma.locations.findMany({
       where: Object.keys(whereClause).length ? whereClause : undefined,
       include: {
         hygiene_scores: {
-          select: { score: true },
+          where: {
+            created_at: {
+              gte: startOfDay,
+              lte: endOfDay
+            }
+          },
+          select: {
+            score: true,
+            created_at: true
+          },
+          orderBy: {
+            created_at: 'desc'
+          },
+          take: 1 // Get only the most recent score from today
         },
         cleaner_reviews: {
           select: {
@@ -80,7 +98,38 @@ export const getAllToilets = async (req, res) => {
             id: true,
             name: true
           }
-        }
+        },
+        facility_companies: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+
+        cleaner_assignments: {
+          where: {
+            deletedAt: null,
+            cleaner_user: {
+              role_id: 5 // Only cleaners
+            }
+          },
+          select: {
+            id: true,
+            status: true,
+            assigned_on: true,
+            cleaner_user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true
+              }
+            }
+          },
+          orderBy: {
+            assigned_on: 'desc'
+          }
+        },
       },
       orderBy: {
         created_at: 'desc'
@@ -93,6 +142,8 @@ export const getAllToilets = async (req, res) => {
 
     // console.dir("all locations", { depth: null });
     // STEP 9: Format response (SAME as before)
+
+
     const result = allLocations.map((loc) => {
       const hygieneScores = loc.cleaner_reviews.map(hs => Number(hs.score));
       const ratingCount = hygieneScores.length;
@@ -103,6 +154,9 @@ export const getAllToilets = async (req, res) => {
         averageRating = sumOfScores / ratingCount;
       }
 
+      const currentScore = loc.hygiene_scores.length > 0
+        ? Number(loc.hygiene_scores[0].score)
+        : null;
 
 
       //   const hygieneScores = loc.hygiene_scores.map(hs => Number(hs.score));
@@ -115,6 +169,24 @@ export const getAllToilets = async (req, res) => {
       // }
 
 
+      // return {
+      //   ...loc,
+      //   id: loc.id.toString(),
+      //   parent_id: loc.parent_id?.toString() || null,
+      //   company_id: loc.company_id?.toString() || null,
+      //   type_id: loc.type_id?.toString() || null,
+      //   facility_companiesId: loc?.facility_companiesId?.toString() || null,
+      //   images: loc.images || [],
+      //   averageRating: averageRating ? parseFloat(averageRating.toFixed(2)) : null,
+      //   ratingCount,
+      //   hygiene_scores: undefined,
+      //   location_types: {
+      //     ...loc.location_types,
+      //     id: loc?.location_types?.toString()
+      //   }
+      // };
+
+
       return {
         ...loc,
         id: loc.id.toString(),
@@ -125,13 +197,27 @@ export const getAllToilets = async (req, res) => {
         images: loc.images || [],
         averageRating: averageRating ? parseFloat(averageRating.toFixed(2)) : null,
         ratingCount,
+        currentScore: currentScore,
         hygiene_scores: undefined,
         location_types: {
           ...loc.location_types,
-          id: loc?.location_types?.toString()
-        }
+          id: loc?.location_types?.id?.toString()
+        },
+        facility_companies: loc.facility_companies ? {
+          ...loc.facility_companies,
+          id: loc.facility_companies.id.toString()
+        } : null,
+        cleaner_assignments: loc.cleaner_assignments.map(assignment => ({
+          ...assignment,
+          id: assignment.id.toString(),
+          cleaner_user: {
+            ...assignment.cleaner_user,
+            id: assignment.cleaner_user.id.toString()
+          }
+        }))
       };
     });
+
 
     // console.log(" Get all Result count:", result.length);
     res.json(result);  // ← Response format unchanged
