@@ -89,7 +89,7 @@ dotenv.config();
 
 
 const JWT_SECRET = process.env.JWT_SECRETS || 'your-secret-key-change-in-production';
-const JWT_EXPIRY = '2m';  // Token expires in 24 hours
+const JWT_EXPIRY = '24h';  // Token expires in 24 hours
 
 
 console.log('JWT_SECRET loaded:', JWT_SECRET ? 'YES' : 'NO');  // Debug log
