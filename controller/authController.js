@@ -69,7 +69,7 @@ export const loginUser = async (req, res) => {
     });
 
     // const user = await prisma.users.findUnique({ where: { phone } });
-    console.log("user", user);
+    // console.log("user", user);
 
     const serializeUser = {
       ...user,
@@ -114,7 +114,7 @@ export const loginUser = async (req, res) => {
       }
     })
 
-    console.log(updateUserToke, "update user");
+    // console.log(updateUserToke, "update user");
     // For simplicity, return basic info (in production use JWT)
     res.json({
       status: "success",

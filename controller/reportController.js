@@ -541,7 +541,8 @@ export const getDailyTaskReport = async (req, res) => {
                 task_start_time: task.created_at,
                 task_end_time: task.status === "completed" ? task.updated_at : null,
                 duration_minutes: durationMinutes,
-
+                before_photo: task.before_photo || [],
+                after_photo: task.after_photo || [],
                 // All scores are on a 0-10 scale
                 ai_score: parseFloat(aiScore.toFixed(2)),
                 final_rating: parseFloat(finalRating.toFixed(2)),

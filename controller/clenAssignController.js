@@ -38,7 +38,7 @@ export const getAllAssignments = async (req, res) => {
     const assignments = await prisma.cleaner_assignments.findMany({
       where: whereClause,
       include: { locations: true },
-      orderBy: { id: "asc" },
+      orderBy: { id: "desc" },
     });
 
     console.log(company_id, "company_id");
@@ -214,7 +214,7 @@ export const getAssignmentById = async (req, res) => {
 export const createAssignment = async (req, res) => {
   console.log("in create assignments");
   try {
-    const { cleaner_user_id, company_id, location_ids, status } = req.body;
+    const { cleaner_user_id, company_id, location_ids, status, role_id } = req.body;
 
     console.log(req.body, "assignment create req body")
     console.log('after req.body ');
@@ -255,6 +255,7 @@ export const createAssignment = async (req, res) => {
         cleaner_user_id: BigInt(cleaner_user_id),
         location_id: { in: location_ids.map((id) => BigInt(id)) },
         company_id: BigInt(company_id),
+        status: 'assigned'
       },
       select: { location_id: true },
     });
@@ -282,6 +283,7 @@ export const createAssignment = async (req, res) => {
       type_id: location.type_id,
       location_id: location.id,
       status: status || "unassigned",
+      role_id: role_id
     }));
 
     // --- Bulk insert ---
@@ -609,14 +611,14 @@ export const getAssignmentsByLocation = async (req, res) => {
             }
           }
         },
-        supervisor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true
-          }
-        },
+        // supervisor: {
+        //   select: {
+        //     id: true,
+        //     name: true,
+        //     email: true,
+        //     phone: true
+        //   }
+        // },
         locations: {
           select: {
             id: true,
@@ -644,10 +646,10 @@ export const getAssignmentsByLocation = async (req, res) => {
         ...assignment.cleaner_user,
         id: assignment.cleaner_user.id.toString()
       } : null,
-      supervisor: assignment.supervisor ? {
-        ...assignment.supervisor,
-        id: assignment.supervisor.id.toString()
-      } : null,
+      // supervisor: assignment.supervisor ? {
+      //   ...assignment.supervisor,
+      //   id: assignment.supervisor.id.toString()
+      // } : null,
       locations: assignment.locations ? {
         ...assignment.locations,
         id: assignment.locations.id.toString()

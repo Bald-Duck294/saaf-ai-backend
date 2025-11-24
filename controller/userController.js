@@ -76,7 +76,8 @@ export async function getUser(req, res) {
             }
           }
         }
-      }
+      },
+      orderBy: { id: "desc" }
     });
 
     // Convert BigInt to string
@@ -86,7 +87,7 @@ export async function getUser(req, res) {
       company_id: user.company_id?.toString() || null,
     }));
 
-    console.log(usersWithStringIds, "filtered users");
+    // console.log(usersWithStringIds, "filtered users");
     res.json(usersWithStringIds);
 
   } catch (err) {
