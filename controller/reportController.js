@@ -588,6 +588,7 @@ export const getCleanersForReport = async (req, res) => {
     try {
         const { company_id } = req.query;
 
+        console.log(company_id, "company_id")
         if (!company_id) {
             return res.status(400).json({
                 status: "error",
@@ -598,7 +599,7 @@ export const getCleanersForReport = async (req, res) => {
         const cleaners = await prisma.users.findMany({
             where: {
                 company_id: BigInt(company_id),
-                role_id: 4, // Cleaner role
+                role_id: 5, // Cleaner role
                 deletedAt: null
             },
             select: {
@@ -648,7 +649,9 @@ export const getLocationsForReport = async (req, res) => {
         const locations = await prisma.locations.findMany({
             where: {
                 company_id: BigInt(company_id),
+                status: true,
                 deletedAt: null
+
             },
             select: {
                 id: true,
