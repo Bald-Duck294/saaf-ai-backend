@@ -74,7 +74,7 @@ export const loginUser = async (req, res) => {
     const serializeUser = {
       ...user,
       id: user?.id?.toString(),
-      company_id: user?.id?.toString(),
+      company_id: user?.company_id?.toString(),
     }
     if (!user) {
       return res

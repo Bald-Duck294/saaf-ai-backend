@@ -4,7 +4,7 @@ export const saveFCMToken = async (req, res) => {
     // const userId = req.user.id
     const { fcm_token, user_id } = req.body;
     const userId = user_id; // Use user_id from request body
-    console.log('fcm token client', fcm_token);
+    // console.log('fcm token client', fcm_token);
     try {
         await prisma.users.update({
             where: { id: userId },
@@ -20,7 +20,7 @@ export const saveFCMToken = async (req, res) => {
 export const deleteFcmToken = async (req, res) => {
 
     const { userId } = req.body;
-    console.log(req.body, "body request")
+    // console.log(req.body, "body request")
 
     if (!userId) {
         return res.status(400).json({ error: false, message: 'user id not provided' });

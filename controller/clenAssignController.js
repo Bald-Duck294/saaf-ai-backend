@@ -11,19 +11,42 @@ export const getAllAssignments = async (req, res) => {
     console.log('hitting get assignment')
     console.log('in get all assignment');
     const { company_id, role_id } = req.query;
+
+    if (!company_id) {
+      return res.status(400).json({
+        status: "error",
+        message: "company_id query parameter is required."
+      });
+    }
+
     let whereClause = {};
 
+
+    if (req.user.role_id === 3) {
+      console.log("Supervisor - excluding other supervisors");
+      whereClause.role_id = {
+        not: 3  // Exclude role_id 3 (supervisors)
+      };
+    }
+
+
     console.log(req.query, "req query");
+    console.log(req.user, "req user");
     if (company_id) {
-      // this approch  replace the entire where calsue object 
-      // if more than one fiter use  whereClause.company_id = company_id
       whereClause.company_id = company_id;
     }
 
     if (role_id && role_id !== 'undefined') {
-      whereClause.role_id = parseInt(role_id)
-    }
+      const requestedRoleId = parseInt(role_id);
 
+      // If supervisor is filtering, make sure they can't override the exclusion
+      if (req.user.role_id === 3 && requestedRoleId === 3) {
+        console.log("Supervisor cannot filter to see other supervisors");
+        // Don't apply this filter - keep the NOT filter
+      } else {
+        whereClause.role_id = requestedRoleId;
+      }
+    }
 
     const filteredLocationIds = await RBACFilterService.getLocationFilter(user, "cleaner_activity")
     console.log(filteredLocationIds, "filteredlocations ")
@@ -37,7 +60,16 @@ export const getAllAssignments = async (req, res) => {
 
     const assignments = await prisma.cleaner_assignments.findMany({
       where: whereClause,
-      include: { locations: true },
+      include: {
+        locations: true,
+        role: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      },
+
       orderBy: { id: "desc" },
     });
 
@@ -392,70 +424,6 @@ export const deleteAssignment = async (req, res) => {
   }
 };
 
-
-// Add this NEW method to your AssignmentsApi
-// export const createAssignmentsForLocation = async (req, res) => {
-//   console.log("in create assignments for location--------------------", req.body);
-//   try {
-//     const { location_id, cleaner_user_ids, company_id, status } = req.body;
-
-//     // --- Validation ---
-//     if (
-//       !location_id ||
-//       !company_id ||
-//       !cleaner_user_ids ||
-//       !Array.isArray(cleaner_user_ids) ||
-//       cleaner_user_ids.length === 0
-//     ) {
-//       return res.status(400).json({
-//         status: "error",
-//         message:
-//           "Missing required fields: location_id, company_id, and a non-empty array of cleaner_user_ids.",
-//       });
-//     }
-
-//     // --- Fetch the location to get name and type_id ---
-//     const location = await prisma.locations.findUnique({
-//       where: { id: BigInt(location_id) },
-//       select: { id: true, name: true, type_id: true },
-//     });
-
-//     if (!location) {
-//       return res.status(404).json({
-//         status: "error",
-//         message: "Location not found.",
-//       });
-//     }
-
-//     // --- Prepare assignments: multiple cleaners for 1 location ---
-//     const assignmentsToCreate = cleaner_user_ids.map((cleanerId) => ({
-//       name: location.name,
-//       cleaner_user_id: BigInt(cleanerId),
-//       company_id: BigInt(company_id),
-//       type_id: location.type_id,
-//       location_id: location.id,
-//       status: status || "assigned",
-//     }));
-
-//     // --- Bulk insert ---
-//     const result = await prisma.cleaner_assignments.createMany({
-//       data: assignmentsToCreate,
-//     });
-
-//     res.status(201).json({
-//       status: "success",
-//       message: `${result.count} cleaners assigned to location successfully.`,
-//       data: result,
-//     });
-//   } catch (error) {
-//     console.error("Error creating assignments for location:", error);
-//     res.status(500).json({ 
-//       status: "error", 
-//       message: "Internal Server Error" 
-//     });
-//   }
-// };
-
 export const createAssignmentsForLocation = async (req, res) => {
   console.log("in create assignments for location", req.body);
   try {
@@ -672,86 +640,6 @@ export const getAssignmentsByLocation = async (req, res) => {
   }
 };
 
-// In your assignments controller
-// export const getAssignmentsByCleanerId = async (req, res) => {
-//   console.log('hit the get assignemnt by cleaner id ')
-//   try {
-//     const { cleaner_user_id } = req.params;
-//     const { company_id } = req.query;
-//     console.log("cleaner_user_id", cleaner_user_id);
-//     console.log("copany_id" , company_id)
-//     if (!cleaner_user_id) {
-//       return res.status(400).json({
-//         status: "error",
-//         message: "Cleaner user ID is required"
-//       });
-//     }
-
-//     const whereClause = {
-//       cleaner_user_id: BigInt(cleaner_user_id)
-//     };
-
-//     if (company_id) {
-//       whereClause.company_id = BigInt(company_id);
-//     }
-
-//     const assignments = await prisma.cleaner_assignments.findMany({
-//       where: whereClause,
-//       include: {
-//         locations: {
-//           select: {
-//             id: true,
-//             name: true,
-//             address: true,
-//             city: true,
-//             state: true,
-//             latitude: true,
-//             longitude: true
-//           }
-//         },
-//         supervisor: {
-//           select: {
-//             id: true,
-//             name: true,
-//             phone: true,
-//             email: true
-//           }
-//         }
-//       },
-//       orderBy: { assigned_on: 'desc' }
-//     });
-
-//     const serialized = assignments.map(a => ({
-//       ...a,
-//       id: a.id.toString(),
-//       cleaner_user_id: a.cleaner_user_id.toString(),
-//       company_id: a.company_id.toString(),
-//       type_id: a.type_id?.toString(),
-//       location_id: a.location_id?.toString(),
-//       supervisor_id: a.supervisor_id?.toString(),
-//       locations: a.locations ? {
-//         ...a.locations,
-//         id: a.locations.id.toString()
-//       } : null,
-//       supervisor: a.supervisor ? {
-//         ...a.supervisor,
-//         id: a.supervisor.id.toString()
-//       } : null
-//     }));
-
-//     res.status(200).json({
-//       status: "success",
-//       data: serialized
-//     });
-
-//   } catch (error) {
-//     console.error("Error fetching assignments by cleaner:", error);
-//     res.status(500).json({
-//       status: "error",
-//       message: "Internal Server Error"
-//     });
-//   }
-// };
 
 
 // In your assignments controller
@@ -843,4 +731,3 @@ export const getAssignmentsByCleanerId = async (req, res) => {
   }
 };
 
-// Add route

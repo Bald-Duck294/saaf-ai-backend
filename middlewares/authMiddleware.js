@@ -31,7 +31,7 @@ const JWT_SECRET = process.env.JWT_SECRETS;
 export const verifyToken = (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
-    console.log(authHeader, "authheader");
+    // console.log(authHeader, "authheader");
 
     if (!authHeader) {
       return res.status(401).json({ message: 'No token provided' });
@@ -43,9 +43,9 @@ export const verifyToken = (req, res, next) => {
       return res.status(401).json({ message: 'Malformed token' });
     }
 
-    console.log(parts, "parts");
+    // console.log(parts, "parts");
     const token = parts[1];
-    console.log(JWT_SECRET);
+    // console.log(JWT_SECRET);
 
     // Verify token and extract payload
     const decoded = jwt.verify(token, JWT_SECRET);
