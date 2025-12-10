@@ -411,7 +411,6 @@ export const getAvailableZones = async (req, res) => {
     }
 };
 
-
 export const exportReportCSV = async (req, res) => {
     // Implementation for CSV export
     // You can add this later if needed
@@ -447,50 +446,77 @@ const convertBigIntToString = (obj) => {
 
 
 
-export const getDailyTaskReport = async (req, res) => {
-    console.log('in get daily task report')
+export const getDailyCleaningReport = async (req, res) => {
+    console.log('🔍 Generating Daily Cleaning Report');
     try {
-        const { company_id, start_date, end_date, location_id, cleaner_id, status_filter } = req.query;
+        const { company_id, start_date, end_date, location_id, cleaner_id, status_filter, type_id } = req.query;
+        const user = req.user; // ✅ From verifyToken middleware
+
+        console.log('📥 Request Params:', {
+            company_id,
+            location_id,
+            cleaner_id,
+            type_id,
+            user_role_id: user?.role_id
+        });
 
         if (!company_id) {
             return res.status(400).json({ status: "error", message: "company_id is required" });
         }
 
-        // Build the primary `where` clause for cleaner_review
-        const whereClause = { company_id: BigInt(company_id) };
-        if (location_id) whereClause.location_id = BigInt(location_id);
-        if (cleaner_id) whereClause.cleaner_user_id = BigInt(cleaner_id);
-        if (status_filter && status_filter !== "all") whereClause.status = status_filter;
-        if (start_date || end_date) {
-            whereClause.created_at = {};
-            if (start_date) whereClause.created_at.gte = new Date(start_date);
-            if (end_date) {
-                const endDateTime = new Date(end_date);
-                endDateTime.setHours(23, 59, 59, 999);
-                whereClause.created_at.lte = endDateTime;
-            }
-        }
-
+        // Fetch company details
         const company = await prisma.companies.findUnique({
             where: { id: BigInt(company_id) },
             select: { name: true }
         });
-        // 1. Fetch all matching cleaner review tasks
-        const tasks = await prisma.cleaner_review.findMany({
-            where: whereClause,
-            include: {
-                cleaner_user: { select: { name: true } },
-                location: { select: { name: true, location_types: { select: { name: true } } } },
-            },
-            orderBy: { created_at: "desc" },
+
+        if (!company) {
+            return res.status(404).json({
+                status: "error",
+                message: "Company not found"
+            });
+        }
+
+        // ✅ STEP 1: Get RBAC-filtered locations for this user
+        const locationWhereClause = {
+            company_id: BigInt(company_id),
+            status: true,
+            deletedAt: null
+        };
+
+        const roleFilter = await RBACFilterService.getLocationFilter(user, "daily_cleaning_report");
+        Object.assign(locationWhereClause, roleFilter);
+
+        // If specific location_id is provided, add it to filter
+        if (location_id && location_id !== 'undefined') {
+            locationWhereClause.id = BigInt(location_id);
+        }
+
+        // ✅ Add type_id filter if provided
+        if (type_id && type_id !== 'undefined') {
+            locationWhereClause.type_id = BigInt(type_id);
+        }
+
+        const allowedLocations = await prisma.locations.findMany({
+            where: locationWhereClause,
+            select: { id: true }
         });
 
-        if (tasks.length === 0) {
+        const allowedLocationIds = allowedLocations.map(loc => loc.id);
+
+        console.log(`✅ User has access to ${allowedLocationIds.length} locations`);
+
+        if (allowedLocationIds.length === 0) {
             return res.status(200).json({
-                status: "success", message: "No tasks found", data: [], count: 0, metadata: {
-                    report_type: "Daily Task Report",
+                status: "success",
+                message: "No locations accessible to your role",
+                data: [],
+                count: 0,
+                metadata: {
+                    report_type: "Daily Cleaning Report",
                     generated_on: new Date().toISOString(),
-                    organization: company.name, // ✅ Include organization name even when no tasks
+                    organization: company.name,
+                    user_role_id: user?.role_id,
                     date_range: { start: start_date || "Beginning", end: end_date || "Now" },
                     total_tasks: 0,
                     completed_tasks: 0,
@@ -499,51 +525,129 @@ export const getDailyTaskReport = async (req, res) => {
             });
         }
 
-        // 2. Get all unique location IDs from the tasks
+        // ✅ STEP 2: Build WHERE clause for cleaner_review with RBAC location filter
+        const whereClause = {
+            company_id: BigInt(company_id),
+            location_id: { in: allowedLocationIds } // ✅ Only RBAC-filtered locations
+        };
+
+        if (cleaner_id) whereClause.cleaner_user_id = BigInt(cleaner_id);
+        if (status_filter && status_filter !== "all") whereClause.status = status_filter;
+
+        // Date range filtering
+        if (start_date || end_date) {
+            whereClause.created_at = {};
+            if (start_date && end_date) {
+                let startDateTime = new Date(start_date);
+                let endDateTime = new Date(end_date);
+                if (startDateTime > endDateTime) {
+                    [startDateTime, endDateTime] = [endDateTime, startDateTime];
+                }
+                endDateTime.setHours(23, 59, 59, 999);
+                whereClause.created_at.gte = startDateTime;
+                whereClause.created_at.lte = endDateTime;
+            } else if (start_date) {
+                whereClause.created_at.gte = new Date(start_date);
+            } else if (end_date) {
+                const endDateTime = new Date(end_date);
+                endDateTime.setHours(23, 59, 59, 999);
+                whereClause.created_at.lte = endDateTime;
+            }
+        }
+
+        // Fetch all matching cleaner review tasks
+        const tasks = await prisma.cleaner_review.findMany({
+            where: whereClause,
+            include: {
+                cleaner_user: { select: { name: true, phone: true } },
+                location: {
+                    select: {
+                        name: true,
+                        location_types: { select: { name: true } }
+                    }
+                },
+            },
+            orderBy: { created_at: "desc" },
+        });
+
+        console.log(`✅ Fetched ${tasks.length} tasks for RBAC-filtered locations`);
+
+        if (tasks.length === 0) {
+            return res.status(200).json({
+                status: "success",
+                message: "No cleanings found",
+                data: [],
+                count: 0,
+                metadata: {
+                    report_type: "Daily Cleaning Report",
+                    generated_on: new Date().toISOString(),
+                    organization: company.name,
+                    user_role_id: user?.role_id,
+                    date_range: { start: start_date || "Beginning", end: end_date || "Now" },
+                    total_tasks: 0,
+                    completed_tasks: 0,
+                    ongoing_tasks: 0,
+                }
+            });
+        }
+
+        // ✅ Get all unique location IDs from the tasks (already RBAC-filtered)
         const locationIds = [...new Set(tasks.map(task => task.location_id).filter(Boolean))];
 
-        // 3. Fetch all hygiene scores for those locations in a single query
-        const hygieneScores = await prisma.hygiene_scores.groupBy({
-            by: ['location_id'],
-            where: {
-                location_id: { in: locationIds },
-            },
-            _avg: {
-                score: true,
-            },
-        });
+        // ✅ Calculate average rating per location from cleaner_review scores
+        const reviewsByLocation = new Map();
 
-        // 4. Create a lookup map for quick access to average scores
-        const averageScoresMap = new Map();
-        hygieneScores.forEach(group => {
-            if (group.location_id) {
-                // Prisma returns score as a Decimal, so we convert it to a number
-                const avgScore = group._avg.score ? Number(group._avg.score) : 0;
-                averageScoresMap.set(group.location_id.toString(), avgScore);
+        tasks.forEach(task => {
+            const locId = task.location_id?.toString();
+            if (!locId || !task.score) return;
+
+            if (!reviewsByLocation.has(locId)) {
+                reviewsByLocation.set(locId, []);
             }
+            reviewsByLocation.get(locId).push(Number(task.score));
         });
 
-        // 5. Transform the data, now with the average scores available
+        // ✅ Calculate average score per location from cleaner reviews
+        const averageScoresMap = new Map();
+        reviewsByLocation.forEach((scores, locId) => {
+            const avgScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+            averageScoresMap.set(locId, avgScore);
+        });
+
+        console.log('📈 Average Scores by Location:', Object.fromEntries(averageScoresMap));
+
+        // ✅ Transform the data with average ratings per washroom
         const reportData = tasks.map((task) => {
-            const durationMinutes = Math.round((new Date(task.updated_at || Date.now()) - new Date(task.created_at)) / 60000);
+            const startTime = new Date(task.created_at);
+            const endTime = task.status === "completed" ? new Date(task.updated_at) : null;
+            const now = new Date();
+
+            const durationMinutes = endTime
+                ? Math.round((endTime - startTime) / 60000)
+                : Math.round((now - startTime) / 60000);
 
             const aiScore = task.score || 0;
 
-            // ✅ Get the average hygiene score for the location from our map
-            const finalRating = averageScoresMap.get(task.location_id?.toString()) || 0;
+            // ✅ Get the average rating for this location from cleaner reviews
+            const avgLocationRating = averageScoresMap.get(task.location_id?.toString()) || 0;
 
             return {
                 task_id: task.id.toString(),
                 cleaner_name: task.cleaner_user?.name || "Unknown",
+                cleaner_phone: task.cleaner_user?.phone || "N/A",
+                washroom_name: task.location?.name || "Unknown",
                 washroom_full_name: `${task.location?.name || "Unknown"}${task.location?.location_types?.name ? ` (${task.location.location_types.name})` : ''}`,
                 task_start_time: task.created_at,
-                task_end_time: task.status === "completed" ? task.updated_at : null,
+                task_end_time: endTime,
                 duration_minutes: durationMinutes,
                 before_photo: task.before_photo || [],
                 after_photo: task.after_photo || [],
-                // All scores are on a 0-10 scale
+
+                // ✅ AI score for this specific task
                 ai_score: parseFloat(aiScore.toFixed(2)),
-                final_rating: parseFloat(finalRating.toFixed(2)),
+
+                // ✅ Average rating for this washroom (from all reviews)
+                washroom_avg_rating: parseFloat(avgLocationRating.toFixed(2)),
 
                 status: task.status,
             };
@@ -553,29 +657,38 @@ export const getDailyTaskReport = async (req, res) => {
         const completed_tasks = reportData.filter(t => t.status === "completed").length;
         const ongoing_tasks = total_tasks - completed_tasks;
 
+        // ✅ Calculate overall average AI score
+        const overall_avg_ai_score = total_tasks > 0
+            ? (reportData.reduce((sum, t) => sum + t.ai_score, 0) / total_tasks).toFixed(2)
+            : 0;
+
         const reportMetadata = {
-            report_type: "Daily Task Report",
+            report_type: "Daily Cleaning Report",
             generated_on: new Date().toISOString(),
             organization: company.name,
+            user_role_id: user?.role_id,
             date_range: { start: start_date || "Beginning", end: end_date || "Now" },
             total_tasks,
             completed_tasks,
             ongoing_tasks,
+            overall_avg_ai_score: parseFloat(overall_avg_ai_score),
+            total_locations: locationIds.length,
         };
 
-        console.log(reportMetadata, "metadata")
+        console.log('✅ Daily Cleaning Report generated:', reportMetadata);
+
         res.status(200).json({
             status: "success",
-            message: "Daily task report generated successfully",
+            message: "Daily Cleaning report generated successfully",
             metadata: reportMetadata,
             data: reportData,
             count: total_tasks,
         });
     } catch (error) {
-        console.error("Error generating daily task report:", error);
+        console.error("❌ Error generating daily cleaning report:", error);
         res.status(500).json({
             status: "error",
-            message: "Failed to generate daily task report",
+            message: "Failed to generate daily cleaning report",
             error: process.env.NODE_ENV === "development" ? error.message : undefined,
         });
     }
@@ -597,7 +710,15 @@ export const getWashroomReport = async (req, res) => {
             type_id
         } = req.query;
 
-        console.log('📥 Request Params:', { company_id, start_date, end_date, location_id });
+        const user = req.user; // ✅ From verifyToken middleware
+
+        console.log('📥 Request Params:', {
+            company_id,
+            start_date,
+            end_date,
+            location_id,
+            user_role_id: user?.role_id
+        });
 
         // Validation
         if (!company_id) {
@@ -620,6 +741,50 @@ export const getWashroomReport = async (req, res) => {
             });
         }
 
+        // ✅ STEP 1: Get RBAC-filtered locations for this user
+        const locationWhereClause = {
+            company_id: BigInt(company_id),
+            status: true,
+            deletedAt: null
+        };
+
+        const roleFilter = await RBACFilterService.getLocationFilter(user, "washroom_report");
+        Object.assign(locationWhereClause, roleFilter);
+
+        // If specific location_id is provided, add it to filter
+        if (location_id && location_id !== 'undefined') {
+            locationWhereClause.id = BigInt(location_id);
+        }
+
+        // Add type_id filter if provided
+        if (type_id && type_id !== 'undefined') {
+            locationWhereClause.type_id = BigInt(type_id);
+        }
+
+        const allowedLocations = await prisma.locations.findMany({
+            where: locationWhereClause,
+            select: { id: true }
+        });
+
+        const allowedLocationIds = allowedLocations.map(loc => loc.id);
+
+        console.log(`✅ User has access to ${allowedLocationIds.length} locations`);
+
+        if (allowedLocationIds.length === 0) {
+            return res.status(200).json({
+                status: "success",
+                message: "No locations accessible to your role",
+                data: [],
+                count: 0,
+                metadata: {
+                    report_type: location_id ? "Single Washroom Report" : "All Washrooms Report",
+                    organization: company.name,
+                    generated_on: new Date().toISOString(),
+                    user_role_id: user?.role_id,
+                }
+            });
+        }
+
         // Determine report type
         const isSingleWashroom = !!location_id;
         const reportType = isSingleWashroom
@@ -628,13 +793,14 @@ export const getWashroomReport = async (req, res) => {
 
         console.log(`📊 Report Type: ${reportType}`);
 
-        // Build WHERE clause for cleaner_review
+        // ✅ STEP 2: Build WHERE clause for cleaner_review (with RBAC location filter)
         const whereClause = {
             company_id: BigInt(company_id),
-            ...(location_id && { location_id: BigInt(location_id) }),
+            location_id: { in: allowedLocationIds }, // ✅ Only RBAC-filtered locations
             ...(cleaner_id && { cleaner_user_id: BigInt(cleaner_id) }),
             ...(status_filter && status_filter !== "all" && { status: status_filter })
         };
+
 
         // Date range filtering with proper validation
         if (start_date || end_date) {
@@ -672,7 +838,7 @@ export const getWashroomReport = async (req, res) => {
             typeof value === 'bigint' ? value.toString() : value, 2
         ));
 
-        // Fetch all cleaning tasks
+        // Fetch all cleaning tasks (already filtered by RBAC locations)
         const tasks = await prisma.cleaner_review.findMany({
             where: whereClause,
             include: {
@@ -703,14 +869,17 @@ export const getWashroomReport = async (req, res) => {
             orderBy: { created_at: "desc" },
         });
 
-        console.log(`✅ Fetched ${tasks.length} cleaning tasks`);
+        console.log(`✅ Fetched ${tasks.length} cleaning tasks for RBAC-filtered locations`);
 
         // Debug if no tasks found
         if (tasks.length === 0) {
             const totalCompanyTasks = await prisma.cleaner_review.count({
-                where: { company_id: BigInt(company_id) }
+                where: {
+                    company_id: BigInt(company_id),
+                    location_id: { in: allowedLocationIds }
+                }
             });
-            console.log(`ℹ️ Total tasks in company: ${totalCompanyTasks}`);
+            console.log(`ℹ️ Total tasks in accessible locations: ${totalCompanyTasks}`);
         }
 
         // Handle empty results
@@ -726,6 +895,7 @@ export const getWashroomReport = async (req, res) => {
                     is_single_washroom: isSingleWashroom,
                     generated_on: new Date().toISOString(),
                     organization: company.name,
+                    user_role_id: user?.role_id,
                     date_range: {
                         start: start_date || "Beginning",
                         end: end_date || "Now"
@@ -752,10 +922,10 @@ export const getWashroomReport = async (req, res) => {
             });
         }
 
-        // ✅ Get unique location IDs
+        // ✅ Get unique location IDs (already RBAC-filtered)
         const locationIds = [...new Set(tasks.map(task => task.location_id).filter(Boolean))];
 
-        // ✅ FIXED: Fetch ALL hygiene scores for these locations (not grouped)
+        // ✅ Fetch hygiene scores for RBAC-filtered locations
         const hygieneScoresRaw = await prisma.hygiene_scores.findMany({
             where: {
                 location_id: { in: locationIds },
@@ -772,7 +942,7 @@ export const getWashroomReport = async (req, res) => {
 
         console.log(`📊 Found ${hygieneScoresRaw.length} hygiene scores for ${locationIds.length} locations`);
 
-        // ✅ NEW: Group hygiene scores by location and calculate averages
+        // ✅ Group hygiene scores by location and calculate averages
         const hygieneScoresByLocation = new Map();
         hygieneScoresRaw.forEach(record => {
             const locId = record.location_id?.toString();
@@ -841,7 +1011,7 @@ export const getWashroomReport = async (req, res) => {
             const ongoing = cleanings.length - completed;
             const completedCleanings = cleanings.filter(c => c.status === 'completed');
 
-            // ✅ FIXED: Use hygiene_scores average, not task.score
+            // ✅ Use hygiene_scores average
             const locId = location_id.toString();
             const avgRating = averageScoresMap.get(locId) || 0;
 
@@ -897,6 +1067,7 @@ export const getWashroomReport = async (req, res) => {
                     is_single_washroom: true,
                     generated_on: new Date().toISOString(),
                     organization: company.name,
+                    user_role_id: user?.role_id,
                     date_range: {
                         start: start_date || "Beginning",
                         end: end_date || "Now"
@@ -948,9 +1119,11 @@ export const getWashroomReport = async (req, res) => {
 
                 // Get latest cleaning
                 const latestCleaning = cleanings[0];
-                const completedCleanings = cleanings.filter(c => c.status === 'completed');
+                // const completedCleanings = cleanings.filter(c => c.status === 'completed');
+                const completedCleanings = latestCleaning;
 
-                // ✅ FIXED: Use hygiene_scores average
+                // console.log(completedCleanings, "completd cleanings")
+                // ✅ Use hygiene_scores average
                 const avgRating = averageScoresMap.get(locId) || 0;
 
                 const totalImages = cleanings.reduce((sum, c) =>
@@ -977,7 +1150,7 @@ export const getWashroomReport = async (req, res) => {
                     end_time: latestCleaning?.status === 'completed' ? latestCleaning?.updated_at : null,
                     status: latestCleaning?.status || "pending",
                     avg_rating: parseFloat(avgRating.toFixed(2)),
-                    final_rating: parseFloat(avgRating.toFixed(2)), // Same as avg_rating
+                    final_rating: parseFloat(avgRating.toFixed(2)),
                     image_count: totalImages,
                     last_cleaned_on: latestCleaning?.created_at,
                     total_cleanings: cleanings.length,
@@ -990,7 +1163,7 @@ export const getWashroomReport = async (req, res) => {
             const totalCompleted = tasks.filter(t => t.status === 'completed').length;
             const totalOngoing = tasks.length - totalCompleted;
 
-            // ✅ FIXED: Average of location averages
+            // ✅ Average of location averages
             const overallAvgRating = washrooms.length > 0
                 ? washrooms.reduce((sum, w) => sum + w.avg_rating, 0) / washrooms.length
                 : 0;
@@ -1011,6 +1184,7 @@ export const getWashroomReport = async (req, res) => {
                     is_single_washroom: false,
                     generated_on: new Date().toISOString(),
                     organization: company.name,
+                    user_role_id: user?.role_id,
                     date_range: {
                         start: start_date || "Beginning",
                         end: end_date || "Now"
@@ -1039,6 +1213,385 @@ export const getWashroomReport = async (req, res) => {
 };
 
 
+// export const getCleanerReport = async (req, res) => {
+//     console.log('🔍 Generating Cleaner Report (Single or All)');
+//     try {
+//         let {
+//             company_id,
+//             start_date,
+//             end_date,
+//             cleaner_id,
+//             status_filter,
+//         } = req.query;
+
+//         // Validation
+//         if (!company_id) {
+//             return res.status(400).json({
+//                 status: "error",
+//                 message: "company_id is required"
+//             });
+//         }
+
+//         // Fetch company details
+//         const company = await prisma.companies.findUnique({
+//             where: { id: BigInt(company_id) },
+//             select: { name: true }
+//         });
+
+//         if (!company) {
+//             return res.status(404).json({
+//                 status: "error",
+//                 message: "Company not found"
+//             });
+//         }
+
+//         // Build WHERE clause for cleaner_review
+//         const whereClause = {
+//             company_id: BigInt(company_id),
+//             ...(cleaner_id && { cleaner_user_id: BigInt(cleaner_id) }),
+//             ...(status_filter && status_filter !== "all" && { status: status_filter })
+//         };
+
+//         // Date range filtering
+//         if (start_date || end_date) {
+//             whereClause.created_at = {};
+//             if (start_date && end_date) {
+//                 let startDateTime = new Date(start_date);
+//                 let endDateTime = new Date(end_date);
+//                 if (startDateTime > endDateTime) {
+//                     [startDateTime, endDateTime] = [endDateTime, startDateTime];
+//                 }
+//                 endDateTime.setHours(23, 59, 59, 999);
+//                 whereClause.created_at.gte = startDateTime;
+//                 whereClause.created_at.lte = endDateTime;
+//             } else if (start_date) {
+//                 whereClause.created_at.gte = new Date(start_date);
+//             } else if (end_date) {
+//                 const endDateTime = new Date(end_date);
+//                 endDateTime.setHours(23, 59, 59, 999);
+//                 whereClause.created_at.lte = endDateTime;
+//             }
+//         }
+
+//         const isSingleCleaner = !!cleaner_id;
+//         const reportType = isSingleCleaner ? "Single Cleaner Report" : "All Cleaners Report";
+
+//         // Fetch cleaning tasks
+//         const tasks = await prisma.cleaner_review.findMany({
+//             where: whereClause,
+//             include: {
+//                 cleaner_user: {
+//                     select: {
+//                         id: true,
+//                         name: true,
+//                         phone: true,
+//                     }
+//                 },
+//                 location: {
+//                     select: {
+//                         id: true,
+//                         name: true,
+//                         address: true,
+//                         city: true,
+//                         state: true,
+//                         location_types: { select: { name: true } },
+//                     }
+//                 }
+//             },
+//             orderBy: { created_at: "desc" },
+//         });
+
+//         // ✅ Get unique cleaner user IDs from tasks
+//         const assignedUserIds = [
+//             ...new Set(tasks.map((task) => task?.cleaner_user?.id).filter(Boolean))
+//         ];
+
+//         const getUserLocAssignments = async (userIds) => {
+//             if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+//                 return new Map(); // Return empty map if no user IDs
+//             }
+
+//             try {
+//                 const assignments = await prisma.cleaner_assignments.findMany({
+//                     where: {
+//                         cleaner_user_id: { in: userIds },
+//                         status: 'assigned',
+//                         deletedAt: null,
+//                         locations: {
+//                             status: true,
+//                             deletedAt: null,
+//                         }
+//                     },
+//                     select: {
+//                         id: true,
+//                         cleaner_user_id: true,
+//                         location_id: true,
+//                         locations: {
+//                             select: {
+//                                 id: true,
+//                                 name: true,
+//                                 address: true,
+//                             }
+//                         }
+//                     }
+//                 });
+
+//                 console.log('assignment', assignments)
+//                 // ✅ Group assignments by user_id
+//                 const assignmentMap = new Map();
+//                 assignments.forEach(assignment => {
+//                     const userId = assignment.cleaner_user_id?.toString();
+//                     if (!assignmentMap.has(userId)) {
+//                         assignmentMap.set(userId, []);
+//                     }
+//                     if (assignment.locations) {
+//                         assignmentMap.get(userId).push({
+//                             id: assignment.locations.id.toString(),
+//                             name: assignment.locations.name,
+//                             address: assignment.locations.address || 'N/A'
+//                         });
+//                     }
+//                 });
+
+//                 return assignmentMap;
+//             } catch (err) {
+//                 console.error("❌ Error fetching assignments:", err);
+//                 return new Map();
+//             }
+//         };
+
+//         // ✅ Fetch all assignments for the cleaners in the report
+//         const assignmentsMap = await getUserLocAssignments(assignedUserIds);
+
+//         console.log(`📍 Found assignments for ${assignmentsMap.size} cleaners`);
+
+//         // Handle empty
+//         if (tasks.length === 0) {
+//             return res.status(200).json({
+//                 status: "success",
+//                 message: "No cleaner records found",
+//                 data: [],
+//                 metadata: {
+//                     report_type: reportType,
+//                     dynamic_report_name: reportType.replace(/\s+/g, "_"),
+//                     is_single_cleaner: isSingleCleaner,
+//                     generated_on: new Date().toISOString(),
+//                     organization: company.name,
+//                     date_range: {
+//                         start: start_date || "Beginning",
+//                         end: end_date || "Now"
+//                     },
+//                 }
+//             });
+//         }
+
+//         // ============== SINGLE CLEANER REPORT ==============
+//         if (isSingleCleaner) {
+//             // Cleaner Info (from first task)
+//             const cleanerInfo = tasks[0]?.cleaner_user;
+//             const cleanerUserId = cleanerInfo?.id?.toString();
+
+//             // ✅ Get assigned washrooms for this cleaner
+//             const assignedWashrooms = assignmentsMap.get(cleanerUserId) || [];
+
+//             // Cleaning records
+//             const records = tasks.map(task => {
+//                 const startTime = new Date(task.created_at);
+//                 const endTime = task.status === 'completed' ? new Date(task.updated_at) : null;
+//                 const now = new Date();
+//                 const durationMinutes = endTime
+//                     ? Math.round((endTime - startTime) / 60000)
+//                     : Math.round((now - startTime) / 60000);
+
+//                 // Duration Display
+//                 const timeDisplay = endTime
+//                     ? `${startTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} - ${endTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+//                     : (durationMinutes >= 1440 ? "Incomplete" : `${startTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} - In Progress`);
+
+//                 return {
+//                     id: task.id.toString(),
+//                     washroom_name: task.location?.name || "N/A",
+//                     zone_type: task.location?.location_types?.name || "N/A",
+//                     date: startTime.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+//                     time: timeDisplay,
+//                     duration: durationMinutes,
+//                     status: (endTime
+//                         ? (durationMinutes < 1440 ? 'Completed' : 'Incomplete')
+//                         : (durationMinutes < 1440 ? 'Ongoing' : 'Incomplete')),
+//                     rating: task.score ? parseFloat(task.score.toFixed(1)) : "N/A",
+//                 };
+//             });
+
+//             // Metrics
+//             const completed = records.filter(r => r.status === 'Completed').length;
+//             const incomplete = records.filter(r => r.status === 'Incomplete').length;
+//             const ongoing = records.length - completed - incomplete;
+//             const completedRecords = records.filter(r => r.status === 'Completed');
+
+
+//             const avgAiScore =
+//                 completed > 0
+//                     ? (records.filter(r => r.status === 'Completed').reduce((sum, r) => sum + (typeof r.rating === "number" ? r.rating : 0), 0) / completed).toFixed(2)
+//                     : "N/A";
+
+//             const avgDuration = completedRecords.length > 0
+//                 ? Math.round(completedRecords.reduce((sum, r) => sum + (r.duration || 0), 0) / completedRecords.length)
+//                 : 0;
+//             // Top washrooms, improvement
+//             const washroomStats = {};
+//             records.forEach(rec => {
+//                 if (!washroomStats[rec.washroom_name]) {
+//                     washroomStats[rec.washroom_name] = { scores: [], durations: [] };
+//                 }
+//                 if (typeof rec.rating === "number")
+//                     washroomStats[rec.washroom_name].scores.push(rec.rating);
+//                 washroomStats[rec.washroom_name].durations.push(rec.duration);
+//             });
+//             const washroomList = Object.entries(washroomStats).map(([name, s]) => ({
+//                 name,
+//                 avg_score: s.scores.length ? (s.scores.reduce((a, b) => a + b, 0) / s.scores.length).toFixed(2) : "N/A",
+//                 avg_duration: s.durations.length ? Math.round(s.durations.reduce((a, b) => a + b, 0) / s.durations.length) : 0,
+//             })).sort((a, b) => (b.avg_score - a.avg_score));
+
+//             return res.status(200).json({
+//                 status: "success",
+//                 message: "Single Cleaner report generated successfully",
+//                 metadata: {
+//                     is_single_cleaner: true,
+//                     cleaner_name: cleanerInfo?.name || "Unknown",
+//                     cleaner_phone: cleanerInfo?.phone || "N/A",
+//                     // ✅ Add assigned washrooms info
+//                     assigned_washrooms: assignedWashrooms,
+//                     total_assigned_washrooms: assignedWashrooms.length,
+//                     report_type: "Single Cleaner Report",
+//                     dynamic_report_name: `Cleaner_${cleanerInfo?.name || "Unknown"}_Report`,
+//                     organization: company.name,
+//                     generated_on: new Date().toISOString(),
+//                     date_range: {
+//                         start: start_date || "Beginning",
+//                         end: end_date || "Now"
+//                     },
+//                     total_cleanings: records.length,
+//                     completed,
+//                     ongoing,
+//                     incomplete,
+//                     avg_ai_score: avgAiScore,
+//                     avg_duration: avgDuration,
+//                     top_washrooms: washroomList.slice(0, 3),
+//                     improvement_areas: washroomList.slice(-3),
+//                 },
+//                 data: records,
+//                 count: records.length
+//             });
+//         }
+
+//         // ============== ALL CLEANERS REPORT ==============
+//         // Group by cleaner_user
+//         const cleanerMap = new Map();
+//         tasks.forEach(task => {
+//             const cleanerId = (task.cleaner_user?.id || "unknown").toString();
+//             if (!cleanerMap.has(cleanerId)) {
+//                 cleanerMap.set(cleanerId, {
+//                     cleaner_name: task.cleaner_user?.name || "Unknown",
+//                     cleaner_phone: task.cleaner_user?.phone || "N/A",
+//                     records: [],
+//                 });
+//             }
+//             cleanerMap.get(cleanerId).records.push(task);
+//         });
+
+//         // Build leaderboard and stats per cleaner
+//         const cleaners = Array.from(cleanerMap.entries()).map(([id, c]) => {
+//             const completed = c.records.filter(r => r.status === "completed").length;
+//             const ongoing = c.records.filter(r => r.status !== "completed" && r.status !== "Incomplete").length;
+//             const incomplete = c.records.filter(r => {
+//                 if (r.status === "completed") return false;
+//                 const start = new Date(r.created_at);
+//                 const now = new Date();
+//                 const duration = Math.round((now - start) / 60000);
+//                 return duration >= 1440;
+//             }).length;
+//             const avgAiScore =
+//                 completed > 0
+//                     ? (
+//                         c.records.filter(r => r.status === "completed").reduce((sum, r) => sum + (typeof r.score === "number" ? r.score : 0), 0)
+//                         / completed
+//                     ).toFixed(2)
+//                     : "N/A";
+
+//             const completedRecords = c.records.filter(r => r.status === "completed");
+
+//             const avgDuration = completedRecords.length > 0
+//                 ? Math.round(completedRecords.reduce((sum, r) => {
+//                     const start = new Date(r.created_at);
+//                     const end = new Date(r.updated_at);
+//                     return sum + Math.round((end - start) / 60000);
+//                 }, 0) / completedRecords.length)
+//                 : 0;
+
+
+//             // ✅ Get assigned washrooms for this cleaner
+//             const assignedWashrooms = assignmentsMap.get(id) || [];
+
+//             return {
+//                 id,
+//                 cleaner_name: c.cleaner_name,
+//                 cleaner_phone: c.cleaner_phone,
+//                 // ✅ Add assigned washrooms
+//                 assigned_washrooms: assignedWashrooms,
+//                 total_assigned_washrooms: assignedWashrooms.length,
+//                 total_cleanings: c.records.length,
+//                 completed,
+//                 ongoing,
+//                 incomplete,
+//                 avg_ai_score: avgAiScore,
+//                 avg_duration: avgDuration,
+//                 last_activity: c.records.length > 0 ? c.records[0].created_at : null
+//             };
+//         });
+
+//         // Leaderboards
+//         const topAvgScore = [...cleaners].sort((a, b) => b.avg_ai_score - a.avg_ai_score).slice(0, 5);
+//         const topCompleted = [...cleaners].sort((a, b) => b.completed - a.completed).slice(0, 5);
+//         const topConsistent = [...cleaners].sort((a, b) => a.avg_ai_score !== "N/A" ? Math.abs(a.avg_ai_score - (a.avg_duration || 0)) : 0).slice(0, 5);
+
+//         return res.status(200).json({
+//             status: "success",
+//             message: "All Cleaners report generated successfully",
+//             metadata: {
+//                 is_single_cleaner: false,
+//                 report_type: "All Cleaners Report",
+//                 dynamic_report_name: "All_Cleaners_Report",
+//                 organization: company.name,
+//                 generated_on: new Date().toISOString(),
+//                 date_range: {
+//                     start: start_date || "Beginning",
+//                     end: end_date || "Now"
+//                 },
+//                 total_cleaners: cleaners.length,
+//                 total_cleanings_completed: cleaners.reduce((sum, c) => sum + c.completed, 0),
+//                 top_avg_score: topAvgScore,
+//                 top_completed: topCompleted,
+//                 top_consistent: topConsistent,
+//             },
+//             data: cleaners,
+//             count: cleaners.length
+//         });
+//     } catch (error) {
+//         console.error("❌ Error generating cleaner report:", error);
+//         res.status(500).json({
+//             status: "error",
+//             message: "Failed to generate cleaner report",
+//             error: process.env.NODE_ENV === "development" ? error.message : undefined,
+//         });
+//     }
+// };
+
+
+
+// reportsController.js or wherever your API handlers are
+
+
 export const getCleanerReport = async (req, res) => {
     console.log('🔍 Generating Cleaner Report (Single or All)');
     try {
@@ -1049,6 +1602,16 @@ export const getCleanerReport = async (req, res) => {
             cleaner_id,
             status_filter,
         } = req.query;
+
+        const user = req.user; // ✅ From verifyToken middleware
+
+        console.log("Cleaner Report params:", {
+            company_id,
+            cleaner_id,
+            start_date,
+            end_date,
+            user_role_id: user?.role_id
+        });
 
         // Validation
         if (!company_id) {
@@ -1071,9 +1634,42 @@ export const getCleanerReport = async (req, res) => {
             });
         }
 
-        // Build WHERE clause for cleaner_review
+        // ✅ STEP 1: Get RBAC-filtered locations for this user
+        const locationWhereClause = {
+            company_id: BigInt(company_id),
+            status: true,
+            deletedAt: null
+        };
+
+        const roleFilter = await RBACFilterService.getLocationFilter(user, "cleaner_report");
+        Object.assign(locationWhereClause, roleFilter);
+
+        const allowedLocations = await prisma.locations.findMany({
+            where: locationWhereClause,
+            select: { id: true }
+        });
+
+        const allowedLocationIds = allowedLocations.map(loc => loc.id);
+
+        console.log(`✅ User has access to ${allowedLocationIds.length} locations`);
+
+        if (allowedLocationIds.length === 0) {
+            return res.status(200).json({
+                status: "success",
+                message: "No locations assigned to your role",
+                data: [],
+                metadata: {
+                    report_type: isSingleCleaner ? "Single Cleaner Report" : "All Cleaners Report",
+                    organization: company.name,
+                    generated_on: new Date().toISOString(),
+                }
+            });
+        }
+
+        // ✅ STEP 2: Build WHERE clause for cleaner_review (with RBAC location filter)
         const whereClause = {
             company_id: BigInt(company_id),
+            location_id: { in: allowedLocationIds }, // ✅ Only RBAC-filtered locations
             ...(cleaner_id && { cleaner_user_id: BigInt(cleaner_id) }),
             ...(status_filter && status_filter !== "all" && { status: status_filter })
         };
@@ -1102,7 +1698,7 @@ export const getCleanerReport = async (req, res) => {
         const isSingleCleaner = !!cleaner_id;
         const reportType = isSingleCleaner ? "Single Cleaner Report" : "All Cleaners Report";
 
-        // Fetch cleaning tasks
+        // Fetch cleaning tasks (already filtered by RBAC locations)
         const tasks = await prisma.cleaner_review.findMany({
             where: whereClause,
             include: {
@@ -1110,7 +1706,7 @@ export const getCleanerReport = async (req, res) => {
                     select: {
                         id: true,
                         name: true,
-                        phone: true
+                        phone: true,
                     }
                 },
                 location: {
@@ -1127,6 +1723,73 @@ export const getCleanerReport = async (req, res) => {
             orderBy: { created_at: "desc" },
         });
 
+        console.log(`✅ Found ${tasks.length} tasks for RBAC-filtered locations`);
+
+        // ✅ STEP 3: Get unique cleaner user IDs from filtered tasks
+        const assignedUserIds = [
+            ...new Set(tasks.map((task) => task?.cleaner_user?.id).filter(Boolean))
+        ];
+
+        // ✅ STEP 4: Get assigned washrooms (only common locations between supervisor and cleaner)
+        const getUserLocAssignments = async (userIds) => {
+            if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+                return new Map();
+            }
+
+            try {
+                const assignments = await prisma.cleaner_assignments.findMany({
+                    where: {
+                        cleaner_user_id: { in: userIds },
+                        location_id: { in: allowedLocationIds }, // ✅ Only show common locations
+                        status: 'assigned',
+                        deletedAt: null,
+                        locations: {
+                            status: true,
+                            deletedAt: null,
+                        }
+                    },
+                    select: {
+                        id: true,
+                        cleaner_user_id: true,
+                        location_id: true,
+                        locations: {
+                            select: {
+                                id: true,
+                                name: true,
+                                address: true,
+                            }
+                        }
+                    }
+                });
+
+                console.log(`✅ Found ${assignments.length} assignments (common locations only)`);
+
+                const assignmentMap = new Map();
+                assignments.forEach(assignment => {
+                    const userId = assignment.cleaner_user_id?.toString();
+                    if (!assignmentMap.has(userId)) {
+                        assignmentMap.set(userId, []);
+                    }
+                    if (assignment.locations) {
+                        assignmentMap.get(userId).push({
+                            id: assignment.locations.id.toString(),
+                            name: assignment.locations.name,
+                            address: assignment.locations.address || 'N/A'
+                        });
+                    }
+                });
+
+                return assignmentMap;
+            } catch (err) {
+                console.error("❌ Error fetching assignments:", err);
+                return new Map();
+            }
+        };
+
+        const assignmentsMap = await getUserLocAssignments(assignedUserIds);
+
+        console.log(`📍 Found assignments for ${assignmentsMap.size} cleaners (in common locations)`);
+
         // Handle empty
         if (tasks.length === 0) {
             return res.status(200).json({
@@ -1139,6 +1802,7 @@ export const getCleanerReport = async (req, res) => {
                     is_single_cleaner: isSingleCleaner,
                     generated_on: new Date().toISOString(),
                     organization: company.name,
+                    user_role_id: user?.role_id,
                     date_range: {
                         start: start_date || "Beginning",
                         end: end_date || "Now"
@@ -1149,8 +1813,12 @@ export const getCleanerReport = async (req, res) => {
 
         // ============== SINGLE CLEANER REPORT ==============
         if (isSingleCleaner) {
-            // Cleaner Info (from first task)
             const cleanerInfo = tasks[0]?.cleaner_user;
+            const cleanerUserId = cleanerInfo?.id?.toString();
+
+            // ✅ Get assigned washrooms (only common locations)
+            const assignedWashrooms = assignmentsMap.get(cleanerUserId) || [];
+
             // Cleaning records
             const records = tasks.map(task => {
                 const startTime = new Date(task.created_at);
@@ -1160,10 +1828,17 @@ export const getCleanerReport = async (req, res) => {
                     ? Math.round((endTime - startTime) / 60000)
                     : Math.round((now - startTime) / 60000);
 
-                // Duration Display - "HH:mm AM/PM - HH:mm AM/PM" or "Incomplete"
                 const timeDisplay = endTime
                     ? `${startTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} - ${endTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`
-                    : (durationMinutes >= 1440 ? "Incomplete" : `${startTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} - In Progress`);
+                    : `${startTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} - In Progress`;
+
+                // ✅ Status logic: completed, ongoing (<24h), incomplete (>=24h)
+                let status;
+                if (task.status === 'completed') {
+                    status = 'Completed';
+                } else {
+                    status = durationMinutes >= 1440 ? 'Incomplete' : 'Ongoing';
+                }
 
                 return {
                     id: task.id.toString(),
@@ -1172,41 +1847,48 @@ export const getCleanerReport = async (req, res) => {
                     date: startTime.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
                     time: timeDisplay,
                     duration: durationMinutes,
-                    status: (endTime
-                        ? (durationMinutes < 1440 ? 'Completed' : 'Incomplete')
-                        : (durationMinutes < 1440 ? 'Ongoing' : 'Incomplete')),
+                    status: status,
                     rating: task.score ? parseFloat(task.score.toFixed(1)) : "N/A",
                 };
             });
 
             // Metrics
             const completed = records.filter(r => r.status === 'Completed').length;
+            const ongoing = records.filter(r => r.status === 'Ongoing').length;
             const incomplete = records.filter(r => r.status === 'Incomplete').length;
-            const ongoing = records.length - completed - incomplete;
-            const avgAiScore =
-                completed > 0
-                    ? (records.filter(r => r.status === 'Completed').reduce((sum, r) => sum + (typeof r.rating === "number" ? r.rating : 0), 0) / completed).toFixed(2)
-                    : "N/A";
-            const avgDuration =
-                completed > 0
-                    ? Math.round(records.filter(r => r.status === 'Completed').reduce((sum, r) => sum + r.duration, 0) / completed)
-                    : 0;
+            const completedRecords = records.filter(r => r.status === 'Completed');
 
-            // Top washrooms, improvement (based on avg score)
+            const avgAiScore = completedRecords.length > 0
+                ? (completedRecords.reduce((sum, r) => sum + (typeof r.rating === "number" ? r.rating : 0), 0) / completedRecords.length).toFixed(2)
+                : "N/A";
+
+            const avgDuration = completedRecords.length > 0
+                ? Math.round(completedRecords.reduce((sum, r) => sum + (r.duration || 0), 0) / completedRecords.length)
+                : 0;
+
+            // Top washrooms and improvement areas (only from completed tasks)
             const washroomStats = {};
-            records.forEach(rec => {
+            completedRecords.forEach(rec => {
                 if (!washroomStats[rec.washroom_name]) {
                     washroomStats[rec.washroom_name] = { scores: [], durations: [] };
                 }
                 if (typeof rec.rating === "number")
                     washroomStats[rec.washroom_name].scores.push(rec.rating);
-                washroomStats[rec.washroom_name].durations.push(rec.duration);
+                if (rec.duration)
+                    washroomStats[rec.washroom_name].durations.push(rec.duration);
             });
+
             const washroomList = Object.entries(washroomStats).map(([name, s]) => ({
                 name,
                 avg_score: s.scores.length ? (s.scores.reduce((a, b) => a + b, 0) / s.scores.length).toFixed(2) : "N/A",
                 avg_duration: s.durations.length ? Math.round(s.durations.reduce((a, b) => a + b, 0) / s.durations.length) : 0,
-            })).sort((a, b) => (b.avg_score - a.avg_score));
+            })).sort((a, b) => (parseFloat(b.avg_score) - parseFloat(a.avg_score)));
+
+            // ✅ Improvement areas: only ratings below 7.5
+            const improvementAreas = washroomList
+                .filter(w => w.avg_score !== "N/A" && parseFloat(w.avg_score) < 7.5)
+                .sort((a, b) => (parseFloat(a.avg_score) - parseFloat(b.avg_score)))
+                .slice(0, 3);
 
             return res.status(200).json({
                 status: "success",
@@ -1215,10 +1897,13 @@ export const getCleanerReport = async (req, res) => {
                     is_single_cleaner: true,
                     cleaner_name: cleanerInfo?.name || "Unknown",
                     cleaner_phone: cleanerInfo?.phone || "N/A",
+                    assigned_washrooms: assignedWashrooms, // ✅ Only common locations
+                    total_assigned_washrooms: assignedWashrooms.length,
                     report_type: "Single Cleaner Report",
                     dynamic_report_name: `Cleaner_${cleanerInfo?.name || "Unknown"}_Report`,
                     organization: company.name,
                     generated_on: new Date().toISOString(),
+                    user_role_id: user?.role_id,
                     date_range: {
                         start: start_date || "Beginning",
                         end: end_date || "Now"
@@ -1230,7 +1915,7 @@ export const getCleanerReport = async (req, res) => {
                     avg_ai_score: avgAiScore,
                     avg_duration: avgDuration,
                     top_washrooms: washroomList.slice(0, 3),
-                    improvement_areas: washroomList.slice(-3),
+                    improvement_areas: improvementAreas,
                 },
                 data: records,
                 count: records.length
@@ -1238,7 +1923,6 @@ export const getCleanerReport = async (req, res) => {
         }
 
         // ============== ALL CLEANERS REPORT ==============
-        // Group by cleaner_user
         const cleanerMap = new Map();
         tasks.forEach(task => {
             const cleanerId = (task.cleaner_user?.id || "unknown").toString();
@@ -1252,36 +1936,52 @@ export const getCleanerReport = async (req, res) => {
             cleanerMap.get(cleanerId).records.push(task);
         });
 
-        // Build leaderboard and stats per cleaner
+        // ✅ Build leaderboard with correct ongoing/incomplete logic
         const cleaners = Array.from(cleanerMap.entries()).map(([id, c]) => {
-            const completed = c.records.filter(r => r.status === "completed").length;
-            const ongoing = c.records.filter(r => r.status !== "completed" && r.status !== "Incomplete").length;
-            const incomplete = c.records.filter(r => {
-                if (r.status === "completed") return false;
-                const start = new Date(r.created_at);
-                const now = new Date();
-                const duration = Math.round((now - start) / 60000);
-                return duration >= 1440;
-            }).length;
-            const avgAiScore =
-                completed > 0
-                    ? (
-                        c.records.filter(r => r.status === "completed").reduce((sum, r) => sum + (typeof r.score === "number" ? r.score : 0), 0)
-                        / completed
-                    ).toFixed(2)
-                    : "N/A";
-            const avgDuration =
-                completed > 0
-                    ? Math.round(c.records.filter(r => r.status === "completed").reduce((sum, r) => {
-                        const start = new Date(r.created_at);
-                        const end = new Date(r.updated_at);
-                        return sum + Math.round((end - start) / 60000);
-                    }, 0) / completed)
-                    : 0;
+            const now = new Date();
+
+            let completed = 0;
+            let ongoing = 0;
+            let incomplete = 0;
+
+            c.records.forEach(r => {
+                if (r.status === "completed") {
+                    completed++;
+                } else {
+                    const start = new Date(r.created_at);
+                    const durationMinutes = Math.round((now - start) / 60000);
+
+                    if (durationMinutes >= 1440) { // >= 24 hours
+                        incomplete++;
+                    } else { // < 24 hours
+                        ongoing++;
+                    }
+                }
+            });
+
+            const completedRecords = c.records.filter(r => r.status === "completed");
+
+            const avgAiScore = completedRecords.length > 0
+                ? (completedRecords.reduce((sum, r) => sum + (typeof r.score === "number" ? r.score : 0), 0) / completedRecords.length).toFixed(2)
+                : "N/A";
+
+            const avgDuration = completedRecords.length > 0
+                ? Math.round(completedRecords.reduce((sum, r) => {
+                    const start = new Date(r.created_at);
+                    const end = new Date(r.updated_at);
+                    return sum + Math.round((end - start) / 60000);
+                }, 0) / completedRecords.length)
+                : 0;
+
+            // ✅ Get assigned washrooms (only common locations)
+            const assignedWashrooms = assignmentsMap.get(id) || [];
+
             return {
                 id,
                 cleaner_name: c.cleaner_name,
                 cleaner_phone: c.cleaner_phone,
+                assigned_washrooms: assignedWashrooms, // ✅ Only common locations
+                total_assigned_washrooms: assignedWashrooms.length,
                 total_cleanings: c.records.length,
                 completed,
                 ongoing,
@@ -1293,9 +1993,19 @@ export const getCleanerReport = async (req, res) => {
         });
 
         // Leaderboards
-        const topAvgScore = [...cleaners].sort((a, b) => b.avg_ai_score - a.avg_ai_score).slice(0, 5);
-        const topCompleted = [...cleaners].sort((a, b) => b.completed - a.completed).slice(0, 5);
-        const topConsistent = [...cleaners].sort((a, b) => a.avg_ai_score !== "N/A" ? Math.abs(a.avg_ai_score - (a.avg_duration || 0)) : 0).slice(0, 5);
+        const topAvgScore = [...cleaners]
+            .filter(c => c.avg_ai_score !== "N/A")
+            .sort((a, b) => parseFloat(b.avg_ai_score) - parseFloat(a.avg_ai_score))
+            .slice(0, 5);
+
+        const topCompleted = [...cleaners]
+            .sort((a, b) => b.completed - a.completed)
+            .slice(0, 5);
+
+        const topConsistent = [...cleaners]
+            .filter(c => c.completed > 0 && c.avg_ai_score !== "N/A")
+            .sort((a, b) => b.completed - a.completed)
+            .slice(0, 5);
 
         return res.status(200).json({
             status: "success",
@@ -1306,6 +2016,7 @@ export const getCleanerReport = async (req, res) => {
                 dynamic_report_name: "All_Cleaners_Report",
                 organization: company.name,
                 generated_on: new Date().toISOString(),
+                user_role_id: user?.role_id,
                 date_range: {
                     start: start_date || "Beginning",
                     end: end_date || "Now"
@@ -1330,12 +2041,18 @@ export const getCleanerReport = async (req, res) => {
 };
 
 
-// reportsController.js or wherever your API handlers are
-
 export const getDetailedCleaningReport = async (req, res) => {
     console.log('🔍 Generating Detailed Cleaning Report');
     try {
         const { company_id, start_date, end_date, location_id, cleaner_id, status_filter, type_id } = req.query;
+        const user = req.user; // ✅ From verifyToken middleware
+
+        console.log('📥 Request Params:', {
+            company_id,
+            location_id,
+            cleaner_id,
+            user_role_id: user?.role_id
+        });
 
         if (!company_id) {
             return res.status(400).json({ status: "error", message: "company_id is required" });
@@ -1347,9 +2064,73 @@ export const getDetailedCleaningReport = async (req, res) => {
             select: { name: true }
         });
 
-        // ✅ Build WHERE clause
-        const whereClause = { company_id: BigInt(company_id) };
-        if (location_id) whereClause.location_id = BigInt(location_id);
+        if (!company) {
+            return res.status(404).json({
+                status: "error",
+                message: "Company not found"
+            });
+        }
+
+        // ✅ STEP 1: Get RBAC-filtered locations for this user
+        const locationWhereClause = {
+            company_id: BigInt(company_id),
+            status: true,
+            deletedAt: null
+        };
+
+        const roleFilter = await RBACFilterService.getLocationFilter(user, "detailed_cleaning_report");
+        Object.assign(locationWhereClause, roleFilter);
+
+        // If specific location_id is provided, add it to filter
+        if (location_id && location_id !== 'undefined') {
+            locationWhereClause.id = BigInt(location_id);
+        }
+
+        // Add type_id filter if provided
+        if (type_id && type_id !== 'undefined') {
+            locationWhereClause.type_id = BigInt(type_id);
+        }
+
+        const allowedLocations = await prisma.locations.findMany({
+            where: locationWhereClause,
+            select: { id: true }
+        });
+
+        const allowedLocationIds = allowedLocations.map(loc => loc.id);
+
+        console.log(`✅ User has access to ${allowedLocationIds.length} locations`);
+
+        if (allowedLocationIds.length === 0) {
+            return res.status(200).json({
+                status: "success",
+                message: "No locations accessible to your role",
+                data: [],
+                count: 0,
+                metadata: {
+                    report_type: "Detailed Cleaning Report",
+                    report_name: "Detailed_Cleaning_Report",
+                    generated_on: new Date().toISOString(),
+                    organization: company.name,
+                    user_role_id: user?.role_id,
+                    date_range: { start: start_date || "Beginning", end: end_date || "Now" },
+                    total_tasks: 0,
+                    completed_tasks: 0,
+                    ongoing_tasks: 0,
+                    compliance_rate: 0,
+                    compliant_tasks: 0,
+                    average_duration_minutes: 0,
+                    image_capture_rate: 0,
+                    tasks_with_images: 0,
+                }
+            });
+        }
+
+        // ✅ STEP 2: Build WHERE clause with RBAC location filter
+        const whereClause = {
+            company_id: BigInt(company_id),
+            location_id: { in: allowedLocationIds } // ✅ Only RBAC-filtered locations
+        };
+
         if (cleaner_id) whereClause.cleaner_user_id = BigInt(cleaner_id);
         if (status_filter && status_filter !== "all") whereClause.status = status_filter;
 
@@ -1364,7 +2145,7 @@ export const getDetailedCleaningReport = async (req, res) => {
             }
         }
 
-        // ✅ Fetch tasks with zone/hierarchy info
+        // ✅ Fetch tasks with zone/hierarchy info (already RBAC-filtered)
         const tasks = await prisma.cleaner_review.findMany({
             where: whereClause,
             include: {
@@ -1387,6 +2168,8 @@ export const getDetailedCleaningReport = async (req, res) => {
             orderBy: { created_at: "desc" },
         });
 
+        console.log(`✅ Fetched ${tasks.length} tasks for RBAC-filtered locations`);
+
         // ✅ Handle empty results
         if (tasks.length === 0) {
             return res.status(200).json({
@@ -1396,9 +2179,10 @@ export const getDetailedCleaningReport = async (req, res) => {
                 count: 0,
                 metadata: {
                     report_type: "Detailed Cleaning Report",
-                    report_name: "Detailed_Cleaning_Report", // ✅ For file naming
+                    report_name: "Detailed_Cleaning_Report",
                     generated_on: new Date().toISOString(),
                     organization: company.name,
+                    user_role_id: user?.role_id,
                     date_range: { start: start_date || "Beginning", end: end_date || "Now" },
                     total_tasks: 0,
                     completed_tasks: 0,
@@ -1412,17 +2196,18 @@ export const getDetailedCleaningReport = async (req, res) => {
             });
         }
 
-        // ✅ Get unique location IDs
+        // ✅ Get unique location IDs (already RBAC-filtered)
         const locationIds = [...new Set(tasks.map(task => task.location_id).filter(Boolean))];
 
-        // ✅ Fetch hygiene scores (for final_rating)
+        // ✅ Fetch hygiene scores (for final_rating) for RBAC-filtered locations
         const hygieneScores = await prisma.hygiene_scores.groupBy({
             by: ['location_id'],
             where: { location_id: { in: locationIds } },
             _avg: { score: true },
         });
 
-        console.log(hygieneScores, "hygiene scores")
+        console.log(`📊 Found hygiene scores for ${hygieneScores.length} locations`);
+
         // ✅ Create score lookup map
         const averageScoresMap = new Map();
         hygieneScores.forEach(group => {
@@ -1438,7 +2223,7 @@ export const getDetailedCleaningReport = async (req, res) => {
             select: { name: true }
         }) : null;
 
-        //  Transform data with smart time logic
+        // Transform data with smart time logic
         const reportData = tasks.map((task) => {
             const startTime = new Date(task.created_at);
             const endTime = task.status === "completed" ? new Date(task.updated_at) : null;
@@ -1452,7 +2237,7 @@ export const getDetailedCleaningReport = async (req, res) => {
             // Calculate task age in days
             const taskAgeDays = (now - startTime) / (1000 * 60 * 60 * 24);
 
-            //  Smart time status
+            // Smart time status
             let timeStatus = "";
             let isOverdue = false;
 
@@ -1550,9 +2335,10 @@ export const getDetailedCleaningReport = async (req, res) => {
 
         const reportMetadata = {
             report_type: "Detailed Cleaning Report",
-            report_name: reportName, // ✅ For dynamic file naming
+            report_name: reportName,
             generated_on: new Date().toISOString(),
             organization: company.name,
+            user_role_id: user?.role_id,
             date_range: {
                 start: start_date || "Beginning",
                 end: end_date || "Now"
@@ -1573,7 +2359,12 @@ export const getDetailedCleaningReport = async (req, res) => {
             tasks_with_images,
         };
 
-        console.log("✅ Report generated successfully", { total_tasks, compliance_rate });
+        console.log("✅ Report generated successfully", {
+            total_tasks,
+            compliance_rate,
+            user_role_id: user?.role_id,
+            allowed_locations: allowedLocationIds.length
+        });
 
         res.status(200).json({
             status: "success",
@@ -1592,6 +2383,7 @@ export const getDetailedCleaningReport = async (req, res) => {
         });
     }
 };
+
 export const getAiScoringReport = async (req, res) => {
     try {
         const { company_id, start_date, end_date, location_id } = req.query;
@@ -1945,11 +2737,13 @@ export const getPerformanceSummary = async (req, res) => {
 ///////////////////////////////// CLEANERS & LOCATIONS FOR REPORT FILTERS //////////////////////////////////
 
 
+
 export const getCleanersForReport = async (req, res) => {
     try {
         const { company_id, location_id } = req.query;
+        const user = req.user; // ✅ From verifyToken middleware
 
-        console.log('🔍 Fetching cleaners:', { company_id, location_id });
+        console.log('🔍 Fetching cleaners:', { company_id, location_id, user_role_id: user?.role_id });
 
         if (!company_id) {
             return res.status(400).json({
@@ -1958,87 +2752,92 @@ export const getCleanersForReport = async (req, res) => {
             });
         }
 
-        let cleaners;
+        // ✅ STEP 1: Get RBAC-filtered locations for this user
+        const locationWhereClause = {
+            company_id: BigInt(company_id),
+            status: true,
+            deletedAt: null
+        };
 
-        // ✅ If location_id is provided, filter by assigned cleaners
+        const roleFilter = await RBACFilterService.getLocationFilter(user, "cleaner_list");
+        Object.assign(locationWhereClause, roleFilter);
+
+        // If specific location_id is provided, add it to filter
         if (location_id && location_id !== 'undefined') {
-            // Step 1: Get assigned cleaner user IDs from cleaner_assignment table
-            const assignments = await prisma.cleaner_assignments.findMany({
-                where: {
-                    location_id: (location_id && location_id !== 'undefined ') ? BigInt(location_id) : null,
-                    company_id: BigInt(company_id),
-                    deletedAt: null,
-                    // Add any other conditions if needed (e.g., is_active: true)
-                },
-                select: {
-                    cleaner_user_id: true,
-                },
-                distinct: ['cleaner_user_id'] // Get unique cleaner IDs
-            });
-
-
-            console.log(`📋 Found ${assignments.length} cleaner assignments for location ${location_id}`);
-
-            // Extract cleaner user IDs
-            const cleanerUserIds = assignments
-                .map(a => a.cleaner_user_id)
-                .filter(Boolean); // Remove null/undefined values
-
-            if (cleanerUserIds.length === 0) {
-                // No cleaners assigned to this location
-                return res.status(200).json({
-                    status: "success",
-                    data: [],
-                    count: 0,
-                    message: "No cleaners assigned to this location"
-                });
-            }
-
-            // Step 2: Fetch user details for those cleaner IDs
-            cleaners = await prisma.users.findMany({
-                where: {
-                    id: {
-                        in: cleanerUserIds
-                    },
-                    company_id: BigInt(company_id),
-                    role_id: 5, // Cleaner role
-                    deletedAt: null,
-                },
-                select: {
-                    id: true,
-                    name: true,
-                    phone: true,
-                },
-                orderBy: {
-                    name: "asc",
-                },
-            });
-
-            console.log(`✅ Found ${cleaners.length} active cleaners for location ${location_id}`);
-
-            console.log(assignments, "assignments");
-            console.log(cleaners, "cleaners list");
-
-        } else {
-            // ✅ Fetch all cleaners for the company
-            cleaners = await prisma.users.findMany({
-                where: {
-                    company_id: BigInt(company_id),
-                    role_id: 5, // Cleaner role
-                    deletedAt: null
-                },
-                select: {
-                    id: true,
-                    name: true,
-                    phone: true,
-                },
-                orderBy: {
-                    name: "asc",
-                },
-            });
-
-            console.log(`✅ Found ${cleaners.length} total cleaners for company ${company_id}`);
+            locationWhereClause.id = BigInt(location_id);
         }
+
+        const allowedLocations = await prisma.locations.findMany({
+            where: locationWhereClause,
+            select: { id: true }
+        });
+
+        const allowedLocationIds = allowedLocations.map(loc => loc.id);
+
+        console.log(`✅ User has access to ${allowedLocationIds.length} locations`);
+
+        if (allowedLocationIds.length === 0) {
+            return res.status(200).json({
+                status: "success",
+                data: [],
+                count: 0,
+                message: "No locations accessible to your role"
+            });
+        }
+
+        // ✅ STEP 2: Get cleaners assigned to these allowed locations
+        const assignments = await prisma.cleaner_assignments.findMany({
+            where: {
+                location_id: { in: allowedLocationIds }, // ✅ Only RBAC-filtered locations
+                company_id: BigInt(company_id),
+                deletedAt: null,
+                status: 'assigned', // ✅ Only active assignments
+            },
+            select: {
+                cleaner_user_id: true,
+            },
+            distinct: ['cleaner_user_id'] // Get unique cleaner IDs
+        });
+
+        console.log(`📋 Found ${assignments.length} cleaner assignments for allowed locations`);
+
+        // Extract unique cleaner user IDs
+        const cleanerUserIds = [...new Set(
+            assignments
+                .map(a => a.cleaner_user_id)
+                .filter(Boolean)
+        )];
+
+        if (cleanerUserIds.length === 0) {
+            return res.status(200).json({
+                status: "success",
+                data: [],
+                count: 0,
+                message: location_id
+                    ? "No cleaners assigned to this location"
+                    : "No cleaners assigned to accessible locations"
+            });
+        }
+
+        // ✅ STEP 3: Fetch user details for those cleaner IDs
+        const cleaners = await prisma.users.findMany({
+            where: {
+                id: { in: cleanerUserIds },
+                company_id: BigInt(company_id),
+                role_id: 5, // Cleaner role
+                deletedAt: null,
+            },
+            select: {
+                id: true,
+                name: true,
+                phone: true,
+            },
+            orderBy: {
+                name: "asc",
+            },
+        });
+
+        console.log(`✅ Found ${cleaners.length} active cleaners for accessible locations`);
 
         // ✅ Manually convert BigInt to String
         const formattedCleaners = cleaners.map(cleaner => ({
@@ -2062,12 +2861,13 @@ export const getCleanersForReport = async (req, res) => {
     }
 };
 
-
-
 export const getLocationsForReport = async (req, res) => {
     try {
         const { company_id, type_id } = req.query;
-        console.log(req.query, "query")
+        const user = req.user; // ✅ From verifyToken middleware
+
+        console.log('🔍 Fetching locations:', { company_id, type_id, user_role_id: user?.role_id });
+
         if (!company_id) {
             return res.status(400).json({
                 status: "error",
@@ -2075,17 +2875,22 @@ export const getLocationsForReport = async (req, res) => {
             });
         }
 
+        // ✅ Build WHERE clause with RBAC filter
         const whereClause = {
             company_id: BigInt(company_id),
             status: true,
             deletedAt: null
         };
 
+        // ✅ Apply RBAC location filter
+        const roleFilter = await RBACFilterService.getLocationFilter(user, "location_list");
+        Object.assign(whereClause, roleFilter);
+
+        // Add type_id filter if provided
         if (type_id && type_id !== 'undefined') {
-            console.log('the type id is being assigned')
+            console.log('✅ Filtering by type_id:', type_id);
             whereClause.type_id = BigInt(type_id);
         }
-
 
         const locations = await prisma.locations.findMany({
             where: whereClause,
@@ -2105,6 +2910,8 @@ export const getLocationsForReport = async (req, res) => {
             },
         });
 
+        console.log(`✅ Found ${locations.length} locations (RBAC filtered)`);
+
         // ✅ Manually convert BigInt to String
         const formattedLocations = locations.map(loc => ({
             id: loc.id.toString(),
@@ -2122,13 +2929,12 @@ export const getLocationsForReport = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Error fetching locations:", error);
+        console.error("❌ Error fetching locations:", error);
         res.status(500).json({
             status: "error",
             message: "Failed to fetch locations",
         });
     }
 };
-
 
 

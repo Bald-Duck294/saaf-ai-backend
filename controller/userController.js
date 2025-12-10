@@ -539,7 +539,6 @@ export const createUser = async (req, res) => {
 };
 
 
-
 // --- UPDATE USER ---
 export const updateUser = async (req, res) => {
   const userId = BigInt(req.params.id);

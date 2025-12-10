@@ -8,7 +8,7 @@ import { verifyToken } from "../middlewares/authMiddleware.js"
 
 import {
     getZoneWiseReport, getAvailableZones, exportReportCSV,
-    getDailyTaskReport, getCleanersForReport,
+    getDailyCleaningReport, getCleanersForReport,
     getLocationsForReport,
     getAiScoringReport,
     getPerformanceSummary, getDetailedCleaningReport,
@@ -23,15 +23,24 @@ reportRouter.get("/zone-wise", verifyToken, getZoneWiseReport);
 reportRouter.get("/zones", getAvailableZones);
 
 // ✅ NEW: Daily Task Report routes
-reportRouter.get("/daily-task", getDailyTaskReport);
-reportRouter.get("/detailed-cleaning", getDetailedCleaningReport);
-reportRouter.get("/cleaners", getCleanersForReport);
-reportRouter.get("/locations", getLocationsForReport);
-reportRouter.get('/ai-scoring', getAiScoringReport)
-reportRouter.get("/zone-wise/export", exportReportCSV);
-reportRouter.get("/cleaner-performance-summary", getPerformanceSummary)
-reportRouter.get("/washroom-report", getWashroomReport)
-reportRouter.get("/cleaner-report", getCleanerReport)
+reportRouter.get("/daily-task", verifyToken, getDailyCleaningReport);
+reportRouter.get("/detailed-cleaning", verifyToken, getDetailedCleaningReport);
+reportRouter.get("/washroom-report", verifyToken, getWashroomReport)
+reportRouter.get("/cleaner-report", verifyToken, getCleanerReport)
+
+
+
+///////////////////////////////// CLEANERS & LOCATIONS FOR REPORT FILTERS //////////////////////////////////
+reportRouter.get("/cleaners", verifyToken, getCleanersForReport);
+reportRouter.get("/locations", verifyToken, getLocationsForReport);
+
+/////////////////////////////////////////////  Not In Use //////////////////////////////////////////////////////////////
+reportRouter.get('/ai-scoring', getAiScoringReport)  // not in use
+reportRouter.get("/zone-wise/export", exportReportCSV); // not in use
+reportRouter.get("/cleaner-performance-summary", getPerformanceSummary) // not in use
+
+
+
 
 
 export default reportRouter;

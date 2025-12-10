@@ -345,9 +345,9 @@ export const getToiletById = async (req, res) => {
                 name: true,
                 phone: true,
                 email: true
-              }
+              },
             },
-
+            role: true
           },
           orderBy: { assigned_on: "desc" },
           take: 5

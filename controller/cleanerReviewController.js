@@ -292,8 +292,9 @@ export const getCleanerReviewsById = async (req, res) => {
 // Get cleaner reviews by location_id
 export const getCleanerReviewsByLocationId = async (req, res) => {
   console.log('Getting cleaner reviews by location_id');
+
   const { location_id } = req.params;
-  const { company_id } = req.query;
+  const { company_id, take, skip } = req.query;
 
   console.log('Location ID:', location_id);
   console.log('Company ID:', company_id);
@@ -306,6 +307,8 @@ export const getCleanerReviewsByLocationId = async (req, res) => {
         message: "Invalid location ID provided"
       });
     }
+    const limit = take ? Math.min(parseInt(take), 100) : 10;  // Default 10, max 100
+    const offset = skip ? parseInt(skip) : 0;
 
     // Build where clause
     const whereClause = {
@@ -320,6 +323,8 @@ export const getCleanerReviewsByLocationId = async (req, res) => {
     // Fetch reviews with all related data
     const reviews = await prisma.cleaner_review.findMany({
       where: whereClause,
+      take: limit,      // ✅ Limit results
+      skip: offset,
       include: {
         // Include cleaner user details
         cleaner_user: {
