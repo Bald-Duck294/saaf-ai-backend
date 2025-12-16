@@ -230,66 +230,67 @@ export const getAllToilets = async (req, res) => {
 
 
 export const toggleStatusToilet = async (req, res) => {
-  console.log("hit toggle status");
   const { id } = req.params;
 
   try {
-    // ✅ Fetch the toilet
+    // Fetch toilet
     const toilet = await prisma.locations.findUnique({
-      where: {
-        id: BigInt(id)
-      }
+      where: { id: BigInt(id) }
     });
 
-    console.log("Toilet data:", toilet);
-
-    // ✅ Check if toilet exists
     if (!toilet) {
       return res.status(404).json({
         status: "error",
-        message: 'Toilet not found for this id'
+        message: "Toilet not found for this id"
       });
     }
 
-    // ✅ Treat null as true (active), then toggle
-    const currentStatus = toilet?.status ?? true; // null or undefined = true (active)
+    const currentStatus = toilet.status ?? true;
     const newStatus = !currentStatus;
 
-    console.log("Current status:", currentStatus);
-    console.log("New status:", newStatus);
+    const [updatedToilet] = await prisma.$transaction([
 
-    // ✅ Update the status
-    const updatedToilet = await prisma.locations.update({
-      where: {
-        id: BigInt(id)
-      },
-      data: {
-        status: newStatus
-      }
-    });
+      // 1. Update toilet
+      prisma.locations.update({
+        where: { id: BigInt(id) },
+        data: { status: newStatus }
+      }),
 
-    console.log("Updated toilet:", updatedToilet);
+      // 2. If disabling → make all assignments unassigned
+      !newStatus
+        ? prisma.cleaner_assignments.updateMany({
+          where: {
+            location_id: BigInt(id),
+            deletedAt: null
+          },
+          data: { status: "unassigned" }
+        })
+        : prisma.cleaner_assignments.findMany() // dummy
+    ]);
 
-    // ✅ Return success response
-    res.status(200).json({
+    console.log(updatedToilet, "updated toilet")
+    return res.status(200).json({
       status: "success",
-      message: `Status changed successfully to ${newStatus ? 'active' : 'disabled'}`,
+      message: `Status changed successfully to ${newStatus ? "active" : "disabled"}`,
       data: {
         ...updatedToilet,
-        id: updatedToilet.id.toString(),
-        company_id: updatedToilet.company_id.toString(),
-        type_id: updatedToilet.type_id?.toString(),
-        parent_id: updatedToilet.parent_id?.toString(),
-        facility_companiesId: updatedToilet?.updatedToilet?.toString()
+        id: updatedToilet.id?.toString(),
+        company_id: updatedToilet.company_id?.toString(),
+        type_id: updatedToilet.type_id?.toString() ?? null,
+        parent_id: updatedToilet.parent_id?.toString() ?? null,
+        facility_companiesId: updatedToilet?.facility_companiesId.toString() ?? null
       }
     });
 
   } catch (err) {
-    console.error("Cannot change the status of toilet:", err);
+    console.error("Error toggling toilet status:", err);
     res.status(500).json({
       status: "error",
       message: "Failed to toggle status",
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+      error:
+        process.env.NODE_ENV === "development"
+          ? err.message
+          : "Internal server error"
     });
   }
 };
@@ -1038,9 +1039,15 @@ export const deleteLocationById = async (req, res) => {
     }
 
     // Simply call delete - middleware handles soft delete automatically
-    await prisma.locations.delete({
-      where: { id: Number(locationId) }
-    });
+    await prisma.$transaction([
+      prisma.cleaner_assignments.deleteMany({
+        where: { location_id: Number(locationId) }
+      }),
+      prisma.locations.update({
+        where: { id: Number(locationId) },
+        data: { deletedAt: new Date() }
+      })
+    ]);
 
     res.json({
       success: true,

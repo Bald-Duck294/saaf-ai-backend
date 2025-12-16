@@ -7,13 +7,14 @@ import express from "express";
 import { verifyToken } from "../middlewares/authMiddleware.js"
 
 import {
-    getZoneWiseReport, getAvailableZones, exportReportCSV,
+    getZoneWiseReport, getAvailableZones,
     getDailyCleaningReport, getCleanersForReport,
     getLocationsForReport,
     getAiScoringReport,
     getPerformanceSummary, getDetailedCleaningReport,
     getWashroomReport,
-    getCleanerReport
+    getCleanerReport,
+    getWashroomDailyScoresReport
 } from "../controller/reportController.js";
 const reportRouter = express.Router();
 
@@ -27,6 +28,7 @@ reportRouter.get("/daily-task", verifyToken, getDailyCleaningReport);
 reportRouter.get("/detailed-cleaning", verifyToken, getDetailedCleaningReport);
 reportRouter.get("/washroom-report", verifyToken, getWashroomReport)
 reportRouter.get("/cleaner-report", verifyToken, getCleanerReport)
+reportRouter.get("/washroom-daily-scores", getWashroomDailyScoresReport)
 
 
 
@@ -36,7 +38,6 @@ reportRouter.get("/locations", verifyToken, getLocationsForReport);
 
 /////////////////////////////////////////////  Not In Use //////////////////////////////////////////////////////////////
 reportRouter.get('/ai-scoring', getAiScoringReport)  // not in use
-reportRouter.get("/zone-wise/export", exportReportCSV); // not in use
 reportRouter.get("/cleaner-performance-summary", getPerformanceSummary) // not in use
 
 

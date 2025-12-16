@@ -15,10 +15,10 @@ export async function getCleanerReview(req, res) {
 
   const user = req.user
 
-  console.log(req.query, "query form the get cleaner user")
-  if (!user) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
+  // console.log(req.query, "query form the get cleaner user")
+  // if (!user) {
+  //   return res.status(401).json({ message: "Unauthorized" });
+  // }
 
   console.log("request made from get cleaner reviews");
 
@@ -29,11 +29,11 @@ export async function getCleanerReview(req, res) {
   try {
     const whereClause = {};
 
-    const roleFilter = await RBACFilterService.getLocationFilter(user, "cleaner_activity");
+    // const roleFilter = await RBACFilterService.getLocationFilter(user, "cleaner_activity");
 
-    if (roleFilter) {
-      Object.assign(whereClause, roleFilter);
-    }
+    // if (roleFilter) {
+    //   Object.assign(whereClause, roleFilter);
+    // }
     if (cleaner_user_id) {
       whereClause.cleaner_user_id = BigInt(cleaner_user_id);
     }
