@@ -9,7 +9,6 @@ export const getAllToilets = async (req, res) => {
   try {
     // STEP 1: Get user from JWT (already set by verifyToken middleware)
     const user = req.user;
-
     if (!user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -362,11 +361,12 @@ export const getToiletById = async (req, res) => {
       return res.status(404).json({ message: "Toilet not found" });
     }
 
-    console.log(location, 'locations 56');
-    const reviews = await prisma.user_review.findMany({
+    // console.log(location, 'locations 56');
+    const reviews = await prisma.user_review_qr.findMany({
       where: { toilet_id: Number(locId) },
     });
 
+    console.log(reviews, "reviews")
     const intReviews = reviews.map((item) => ({
       ...item,
       toilet_id: item.toilet_id?.toString() || null,

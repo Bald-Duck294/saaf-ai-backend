@@ -1981,6 +1981,10 @@ export const getWashroomDailyScoresReport = async (req, res) => {
         const endDateTime = new Date(end_date);
         endDateTime.setHours(23, 59, 59, 999);
 
+
+        // console.log(start_date, end_date, "original dates");
+        // console.log(startDateTime, "start date modified ")
+        // console.log(endDateTime, "end date modified ")
         if (startDateTime > endDateTime) {
             return res.status(400).json({
                 status: "error",
@@ -1994,6 +1998,7 @@ export const getWashroomDailyScoresReport = async (req, res) => {
             select: { name: true }
         });
 
+        console.log(company, "company data")
         if (!company) {
             return res.status(404).json({
                 status: "error",
@@ -2031,7 +2036,7 @@ export const getWashroomDailyScoresReport = async (req, res) => {
         console.log(`✅ Found ${washrooms.length} washrooms`);
 
         if (washrooms.length === 0) {
-            return res.status(200).json({
+            return res.status(204).json({
                 status: "success",
                 message: "No washrooms found",
                 metadata: {
@@ -2073,7 +2078,9 @@ export const getWashroomDailyScoresReport = async (req, res) => {
             }
         });
 
-        console.log(`✅ Found ${assignments.length} cleaner assignments`);
+        // console.log(assignments, "assignments")
+
+        // console.log(`✅ Found ${assignments.length} cleaner assignments`);
 
         // Group assignments by location
         const assignmentsByLocation = new Map();
@@ -2128,10 +2135,12 @@ export const getWashroomDailyScoresReport = async (req, res) => {
             if (!scoresByLocationAndDate.has(key)) {
                 scoresByLocationAndDate.set(key, []);
             }
+
             scoresByLocationAndDate.get(key).push({
                 score: Number(record.score),
                 timestamp: record.inspected_at
             });
+
 
             // NEW: Track all scores for this location (for overall average)
             if (!allScoresByLocation.has(locId)) {
@@ -2140,6 +2149,8 @@ export const getWashroomDailyScoresReport = async (req, res) => {
             allScoresByLocation.get(locId).push(Number(record.score));
         });
 
+        console.log(scoresByLocationAndDate, "by score and date before")
+        console.log(allScoresByLocation, "by allScores by location before")
         // NEW: Get LATEST score per location per day (not average)
         const latestScorePerDay = new Map();
         scoresByLocationAndDate.forEach((scores, key) => {
@@ -2150,6 +2161,7 @@ export const getWashroomDailyScoresReport = async (req, res) => {
             latestScorePerDay.set(key, parseFloat(sortedScores[0].score.toFixed(2)));
         });
 
+        console.log(scoresByLocationAndDate, "after score and date")
         console.log(`📈 Found latest scores for ${latestScorePerDay.size} location-date combinations`);
 
 
@@ -2226,7 +2238,7 @@ export const getWashroomDailyScoresReport = async (req, res) => {
 
         console.log(`📊 Overall average score across all washrooms: ${overallAvgScore}`);
         console.log(`📊 Total washrooms in report: ${totalWashrooms}`);
-        console.log('✅ Washroom Daily Scores Report generated successfully', reportData);
+        // console.log('✅ Washroom Daily Scores Report generated successfully', reportData);
 
         // ✅ STEP 9: Return response
         res.status(200).json({

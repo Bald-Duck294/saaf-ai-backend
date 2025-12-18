@@ -50,7 +50,7 @@
 //     const address = body.address;
 
 //     // ✅ Step 2: Create the review with toilet_id
-//     const review = await prisma.user_review.create({
+//     const review = await prisma.user_review_qr.create({
 //       data: {
 //         name: body.name,
 //         email: body.email,
@@ -77,7 +77,7 @@
 // // ----------- GET /api/user_review --------------//
 // reviewRoutes.get("/", async (req, res) => {
 //   try {
-//     const user_review = await prisma.user_review.findMany({
+//     const user_review = await prisma.user_review_qr.findMany({
 //       orderBy: { created_at: "desc" },
 //     });
 
@@ -213,7 +213,7 @@ function normalizeBigInt(obj) {
 
 //     // ✅ Update the review with AI score
 //     if (aiScore !== null) {
-//       await prisma.user_review.update({
+//       await prisma.user_review_qr.update({
 //         where: { id: review.id },
 //         data: {
 //           ai_score: aiScore,
@@ -485,7 +485,7 @@ async function processUserReviewAIScoring(review, imageUrls) {
     // ===== UPDATE USER REVIEW WITH AI SCORE =====
     if (aiScore !== null) {
       try {
-        const updatedReview = await prisma.user_review.update({
+        const updatedReview = await prisma.user_review_qr.update({
           where: { id: review.id },
           data: {
             ai_score: aiScore,
@@ -531,7 +531,7 @@ async function processUserReviewAIScoring(review, imageUrls) {
       const fakeScore = generateFakeScore();
       console.log(`📊 Fake AI Score: ${fakeScore}/10`);
 
-      await prisma.user_review.update({
+      await prisma.user_review_qr.update({
         where: { id: review.id },
         data: {
           ai_score: fakeScore,
@@ -602,7 +602,7 @@ reviewRoutes.post(
       // const backendRating = frontendRating; // No conversion
 
       // Create the review with Cloudinary image URLs
-      const review = await prisma.user_review.create({
+      const review = await prisma.user_review_qr.create({
         data: {
           name: body.name,
           email: body.email,
@@ -650,7 +650,7 @@ reviewRoutes.post(
 
 //     const whereClause = toilet_id ? { toilet_id: BigInt(toilet_id) } : {};
 
-//     const user_reviews = await prisma.user_review.findMany({
+//     const user_reviews = await prisma.user_review_qr.findMany({
 //       where: whereClause,
 //       orderBy: { created_at: "desc" },
 //       take: parseInt(limit),
@@ -685,7 +685,7 @@ reviewRoutes.post(
 //   try {
 //     const { id } = req.params;
 
-//     const review = await prisma.user_review.findUnique({
+//     const review = await prisma.user_review_qr.findUnique({
 //       where: { id: BigInt(id) },
 //     });
 
@@ -720,7 +720,7 @@ reviewRoutes.post(
 //     console.log(req.query , "query form user-review")
 //     const whereClause = toilet_id ? { toilet_id: BigInt(toilet_id) } : {};
 
-//     const user_reviews = await prisma.user_review.findMany({
+//     const user_reviews = await prisma.user_review_qr.findMany({
 //       where: whereClause,
 //       orderBy: { created_at: "desc" },
 //       take: parseInt(limit),
@@ -827,7 +827,7 @@ reviewRoutes.get("/", verifyToken, async (req, res) => {
 
     console.log(whereClause, "user-review final where clause");
 
-    const user_reviews = await prisma.user_review.findMany({
+    const user_reviews = await prisma.user_review_qr.findMany({
       where: whereClause,
       orderBy: { created_at: "desc" },
       take: parseInt(limit),
@@ -864,7 +864,7 @@ reviewRoutes.get("/", verifyToken, async (req, res) => {
         const serialized = {};
         for (const [key, value] of Object.entries(obj)) {
           serialized[key] = safeSerialize(value);
-        } 
+        }
         return serialized;
       }
 
@@ -915,7 +915,7 @@ reviewRoutes.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const review = await prisma.user_review.findUnique({
+    const review = await prisma.user_review_qr.findUnique({
       where: { id: BigInt(id) },
     });
 
