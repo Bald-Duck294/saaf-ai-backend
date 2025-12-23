@@ -1613,7 +1613,7 @@ export const getCleanerReport = async (req, res) => {
 export const getDetailedCleaningReport = async (req, res) => {
     console.log('🔍 Generating Detailed Cleaning Report');
     try {
-        const { company_id, start_date, end_date, location_id, cleaner_id, status_filter, type_id } = req.query;
+        const { company_id, start_date, end_date, detailed_report_date, location_id, cleaner_id, status_filter, type_id } = req.query;
         const user = req.user; // ✅ From verifyToken middleware
 
         console.log('📥 Request Params:', {
@@ -1704,15 +1704,23 @@ export const getDetailedCleaningReport = async (req, res) => {
         if (status_filter && status_filter !== "all") whereClause.status = status_filter;
 
         // ✅ Date range filtering
-        if (start_date || end_date) {
+        if (start_date || end_date || detailed_report_date) {
             whereClause.created_at = {};
-            if (start_date) whereClause.created_at.gte = new Date(start_date);
-            if (end_date) {
-                const endDateTime = new Date(end_date);
+            if (detailed_report_date) {
+                whereClause.created_at.gte = new Date(detailed_report_date);
+                const endDateTime = new Date(detailed_report_date);
                 endDateTime.setHours(23, 59, 59, 999);
                 whereClause.created_at.lte = endDateTime;
             }
+            // if (start_date) whereClause.created_at.gte = new Date(start_date);
+            // if (end_date) {
+            //     const endDateTime = new Date(end_date);
+            //     endDateTime.setHours(23, 59, 59, 999);
+            //     whereClause.created_at.lte = endDateTime;
+            // }
         }
+
+        console.log('whereClause', whereClause);
 
         // ✅ Fetch tasks with zone/hierarchy info (already RBAC-filtered)
         const tasks = await prisma.cleaner_review.findMany({
