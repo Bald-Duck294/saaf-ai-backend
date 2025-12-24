@@ -108,7 +108,7 @@ app.use("/api", clen_assign_router);
 app.use("/api/cleaner-reviews", clean_review_Router);
 app.use("/api/users", userRouter);
 app.use("/api/companies", companyRouter);
-app.use("/api/role", roleRouter);
+app.use("/api/roles", roleRouter);
 app.use("/api/shifts", shift_router);
 
 app.use("/uploads", express.static("uploads"));

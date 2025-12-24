@@ -9,7 +9,8 @@ import {
   getSearchToilet,
   updateLocationById,
   deleteLocationById,
-  toggleStatusToilet
+  toggleStatusToilet,
+  getAllToiletsForWeb
 } from "../controller/LocationsController.js";
 import { upload, processAndUploadImages } from "../middlewares/imageUpload.js"
 import { verifyToken } from "../middlewares/authMiddleware.js";
@@ -20,6 +21,7 @@ const getLocationRoutes = express.Router();
 // getLocationRoutes.get('/getLocations' , getLocation);
 getLocationRoutes.get("/loc", getAllToilets);
 getLocationRoutes.get("/", verifyToken, getAllToilets);
+getLocationRoutes.get("/saafai_locations", getAllToiletsForWeb)
 
 // getLocationRoutes.post("/", createLocation);
 

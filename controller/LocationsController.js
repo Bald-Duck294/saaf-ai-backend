@@ -1068,6 +1068,181 @@ export const deleteLocationById = async (req, res) => {
   }
 };
 
+
+
+export const getAllToiletsForWeb = async (req, res) => {
+  console.log("get all toilets");
+
+  try {
+    const { company_id, type_id, include_unavailable } = req.query;
+    console.log("req.query ", req.query);
+    // STEP 1: Build where clause only from query params
+    const whereClause = {};
+
+    // STEP 2: Company filter
+    if (company_id) {
+      whereClause.company_id = BigInt(company_id);
+    }
+
+    // STEP 3: Type filter
+    if (type_id) {
+      whereClause.type_id = BigInt(type_id);
+    }
+
+    // STEP 4: Status filter
+    if (include_unavailable !== 'true') {
+      whereClause.OR = [
+        { status: true },
+        { status: null }
+      ];
+    }
+
+    console.log("Final where clause:", whereClause);
+
+    // STEP 5: Today's date range
+    const today = new Date();
+    const startOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      0, 0, 0, 0
+    );
+    const endOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      23, 59, 59, 999
+    );
+
+    // STEP 6: Query database
+    const allLocations = await prisma.locations.findMany({
+      where: Object.keys(whereClause).length ? whereClause : undefined,
+      include: {
+        hygiene_scores: {
+          where: {
+            created_at: {
+              gte: startOfDay,
+              lte: endOfDay
+            }
+          },
+          select: {
+            score: true,
+            created_at: true
+          },
+          orderBy: {
+            created_at: 'desc'
+          },
+          take: 1
+        },
+        cleaner_reviews: {
+          select: {
+            score: true
+          }
+        },
+        location_types: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        facility_companies: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        cleaner_assignments: {
+          where: {
+            deletedAt: null,
+            cleaner_user: {
+              role_id: 5
+            }
+          },
+          select: {
+            id: true,
+            status: true,
+            assigned_on: true,
+            cleaner_user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true
+              }
+            }
+          },
+          orderBy: {
+            assigned_on: 'desc'
+          }
+        }
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    });
+
+    // STEP 7: Format response
+    const result = allLocations.map((loc) => {
+      const hygieneScores = loc.cleaner_reviews.map(r => Number(r.score));
+      const ratingCount = hygieneScores.length;
+
+      let averageRating = null;
+      if (ratingCount > 0) {
+        const sum = hygieneScores.reduce((a, b) => a + b, 0);
+        averageRating = sum / ratingCount;
+      }
+
+      const currentScore =
+        loc.hygiene_scores.length > 0
+          ? Number(loc.hygiene_scores[0].score)
+          : null;
+
+      return {
+        ...loc,
+        id: loc.id.toString(),
+        parent_id: loc.parent_id?.toString() || null,
+        company_id: loc.company_id?.toString() || null,
+        type_id: loc.type_id?.toString() || null,
+        facility_companiesId: loc?.facility_companiesId?.toString() || null,
+        images: loc.images || [],
+        averageRating: averageRating
+          ? parseFloat(averageRating.toFixed(2))
+          : null,
+        ratingCount,
+        currentScore,
+        hygiene_scores: undefined,
+        location_types: loc.location_types
+          ? {
+            ...loc.location_types,
+            id: loc.location_types.id.toString()
+          }
+          : null,
+        facility_companies: loc.facility_companies
+          ? {
+            ...loc.facility_companies,
+            id: loc.facility_companies.id.toString()
+          }
+          : null,
+        cleaner_assignments: loc.cleaner_assignments.map(a => ({
+          ...a,
+          id: a.id.toString(),
+          cleaner_user: {
+            ...a.cleaner_user,
+            id: a.cleaner_user.id.toString()
+          }
+        }))
+      };
+    });
+
+    res.json(result);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching toilet locations");
+  }
+};
+
+
 ////////////////////// new get locations with zone apis /////////////////////
 
 export const getNearbyLocations = async (req, res) => {
