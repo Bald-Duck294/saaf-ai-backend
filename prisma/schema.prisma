@@ -159,7 +159,7 @@ model users {
   birthdate                         DateTime?             @db.Date
   role_id                           Int?
   deletedAt                         DateTime?
-  token                             String?               @db.VarChar(255)
+  token                             String?               @db.Text
   fcm_token                         String?               @db.VarChar(255)
   avatar_url                        String?
   google_id                         String?               @unique

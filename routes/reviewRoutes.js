@@ -235,7 +235,6 @@ function normalizeBigInt(obj) {
 //   }
 // }
 
-
 // ✅ Asynchronous AI scoring for user reviews
 async function processUserReviewAIScoring(review, imageUrls) {
   console.log('\n========================================');

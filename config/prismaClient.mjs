@@ -167,7 +167,157 @@ const prisma = basePrisma.$extends({
         return query(args);
       }
     }
+    ,
+    cleaner_assignments: {
+      async delete({ args, query }) {
+        return basePrisma.cleaner_assignments.update({
+          ...args,
+          data: { deletedAt: new Date() }
+        });
+      },
+      async deleteMany({ args, query }) {
+        return basePrisma.cleaner_assignments.updateMany({
+          ...args,
+          data: { deletedAt: new Date() }
+        });
+      },
+      async findMany({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      },
+      async findFirst({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      },
+      async findUnique({ args, query }) {
+        return basePrisma.cleaner_assignments.findFirst({
+          ...args,
+          where: { ...args.where, deletedAt: null }
+        });
+      },
+      async update({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      },
+      async updateMany({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      }
+    },
+
+    facility_companies: {
+      async delete({ args, query }) {
+        return basePrisma.facility_companies.update({
+          ...args,
+          data: { deletedAt: new Date() }
+        });
+      },
+      async deleteMany({ args, query }) {
+        return basePrisma.facility_companies.updateMany({
+          ...args,
+          data: { deletedAt: new Date() }
+        });
+      },
+      async findMany({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      },
+      async findFirst({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      },
+      async findUnique({ args, query }) {
+        return basePrisma.facility_companies.findFirst({
+          ...args,
+          where: { ...args.where, deletedAt: null }
+        });
+      },
+      async update({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      },
+      async updateMany({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      }
+    },
+
+    shifts: {
+      async delete({ args, query }) {
+        return basePrisma.shifts.update({
+          ...args,
+          data: { deletedAt: new Date() }
+        });
+      },
+      async deleteMany({ args, query }) {
+        return basePrisma.shifts.updateMany({
+          ...args,
+          data: { deletedAt: new Date() }
+        });
+      },
+      async findMany({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      },
+      async findFirst({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      },
+      async findUnique({ args, query }) {
+        return basePrisma.shifts.findFirst({
+          ...args,
+          where: { ...args.where, deletedAt: null }
+        });
+      },
+      async update({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      },
+      async updateMany({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      }
+    },
+
+    shift_assignments: {
+      async delete({ args, query }) {
+        return basePrisma.shift_assignments.update({
+          ...args,
+          data: { deletedAt: new Date() }
+        });
+      },
+      async deleteMany({ args, query }) {
+        return basePrisma.shift_assignments.updateMany({
+          ...args,
+          data: { deletedAt: new Date() }
+        });
+      },
+      async findMany({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      },
+      async findFirst({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      },
+      async findUnique({ args, query }) {
+        return basePrisma.shift_assignments.findFirst({
+          ...args,
+          where: { ...args.where, deletedAt: null }
+        });
+      },
+      async update({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      },
+      async updateMany({ args, query }) {
+        args.where = { ...args.where, deletedAt: null };
+        return query(args);
+      }
+    },
+
   }
+
 });
 
 export default prisma;

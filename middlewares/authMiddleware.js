@@ -57,10 +57,11 @@ export const verifyToken = (req, res, next) => {
       id: decoded.id,
       role_id: decoded.role_id,
       company_id: decoded.company_id,
-      email: decoded.email
+      email: decoded.email,
+      permissions: decoded.permissions || []
     };
 
-    console.log('User authenticated:', req.user);
+    // console.log('User authenticated:', req.user);
     next();
 
   } catch (error) {

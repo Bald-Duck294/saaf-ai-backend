@@ -6,7 +6,7 @@ export const checkPermission = (requiredPermission) => {
     return (req, res, next) => {
         try {
             const user = req.user;
-            console.log(user, "user in permission middleware");
+            // console.log(user, "user in permission middleware");
             if (!user) {
                 return res.status(401).json({
                     success: false,
@@ -21,8 +21,9 @@ export const checkPermission = (requiredPermission) => {
             }
 
             // Get user's role permissions
-            const userPermissions = user.role?.permissions || [];
+            const userPermissions = user?.permissions || [];
 
+            // console.log(userPermissions, "user permissions");
             // Check if user has the required permission
             if (!userPermissions.includes(requiredPermission)) {
                 return res.status(403).json({

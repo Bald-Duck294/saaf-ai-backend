@@ -637,8 +637,15 @@ export const deleteUser = async (req, res) => {
   const userId = BigInt(req.params.id);
   try {
     await prisma.users.delete({ where: { id: userId } });
+
+    await prisma.cleaner_assignments.deleteMany({
+      where: {
+        cleaner_user_id: userId
+      }
+    })
     res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
+    console.log(error, "error")
     res.status(500).json({ message: "Error deleting user", error: error.message });
   }
 }

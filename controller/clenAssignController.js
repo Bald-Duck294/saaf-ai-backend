@@ -93,6 +93,7 @@ export const getAllAssignments = async (req, res) => {
       user: userMap[a.cleaner_user_id.toString()] || null,
     }));
 
+    console.log(assignmentsWithUsers.length, "assignment with user length")
     // console.log(assignmentsWithUsers, "assigned  users ");
     res.status(200).json({
       status: "success",
