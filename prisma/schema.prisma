@@ -358,7 +358,7 @@ notes     String?
 createdAt DateTime  @default(now())
 updatedAt DateTime  @updatedAt
 deleted_at  DateTime?
-role_id   इंट?
+role_id   Int?
 role      Role?     @relation(fields: [role_id], references: [id])
 shift     shifts    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
 user      users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
