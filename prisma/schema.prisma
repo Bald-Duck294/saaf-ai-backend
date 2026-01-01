@@ -1,6 +1,6 @@
+
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["nativeTypes"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -15,7 +15,7 @@ model activity_logs {
   action      String?   @db.VarChar(255)
   target_type String?   @db.VarChar(50)
   target_id   BigInt?
-  metadata    Json?     @db.Json
+  metadata    Json?
   options     String?
   created_at  DateTime? @default(now()) @db.Timestamp(6)
 
@@ -23,13 +23,13 @@ model activity_logs {
 }
 
 model companies {
-  id                 BigInt   @id @default(autoincrement())
-  name               String   @db.VarChar(255)
+  id                 BigInt    @id @default(autoincrement())
+  name               String    @db.VarChar(255)
   description        String?
-  contact_email      String?  @db.VarChar(255)
+  contact_email      String?   @db.VarChar(255)
   created_at         DateTime? @default(now()) @db.Timestamp(6)
   updated_at         DateTime? @default(now()) @db.Timestamp(6)
-  status             Boolean  @default(true)
+  status             Boolean   @default(true)
   deleted_at         DateTime?
 
   users              users[]
@@ -56,40 +56,40 @@ model hygiene_scores {
   original_score Decimal? @db.Decimal(5, 2)
   company_id     BigInt?
 
-  users      users?     @relation(fields: [created_by], references: [id])
-  locations  locations? @relation(fields: [location_id], references: [id])
+  users          users?     @relation(fields: [created_by], references: [id])
+  locations      locations? @relation(fields: [location_id], references: [id])
   cleanerReviews cleaner_review[]
 }
 
 model locations {
-  id                     BigInt   @id @default(autoincrement())
-  name                   String   @db.VarChar(255)
-  parent_id              BigInt?
-  company_id             BigInt?
-  facility_company_id    BigInt?
-  latitude               Float?
-  longitude              Float?
-  metadata               Json?
-  created_at             DateTime? @default(now()) @db.Timestamp(6)
-  updated_at             DateTime? @default(now()) @db.Timestamp(6)
-  deleted_at             DateTime?
-  type_id                BigInt?
-  options                Json?     @default("{}")
-  images                 String[]
-  address                String?
-  city                   String?
-  state                  String?
-  pincode                String?
-  status                 Boolean?
-  close_time             DateTime? @db.Time(6)
-  open_time              DateTime? @db.Time(6)
+  id                  BigInt    @id @default(autoincrement())
+  name                String    @db.VarChar(255)
+  parent_id           BigInt?
+  company_id          BigInt?
+  facility_company_id BigInt?
+  latitude            Float?
+  longitude           Float?
+  metadata            Json?
+  created_at          DateTime? @default(now()) @db.Timestamp(6)
+  updated_at          DateTime? @default(now()) @db.Timestamp(6)
+  deleted_at          DateTime?
+  type_id             BigInt?
+  options             Json?     @default("{}")
+  images              String[]
+  address             String?
+  city                String?
+  state               String?
+  pincode             String?
+  status              Boolean?
+  close_time          DateTime? @db.Time(6)
+  open_time           DateTime? @db.Time(6)
 
   companies          companies?          @relation(fields: [company_id], references: [id])
   facility_companies facility_companies? @relation(fields: [facility_company_id], references: [id])
   location_types     location_types?     @relation(fields: [type_id], references: [id])
 
-  locations          locations?  @relation("locationsTolocations", fields: [parent_id], references: [id])
-  other_locations    locations[] @relation("locationsTolocations")
+  locations       locations?  @relation("locationsTolocations", fields: [parent_id], references: [id])
+  other_locations locations[] @relation("locationsTolocations")
 
   cleaner_assignments cleaner_assignments[]
   hygiene_scores      hygiene_scores[]
@@ -99,15 +99,15 @@ model locations {
 }
 
 model location_types {
-  id          BigInt   @id @default(autoincrement())
-  name        String   @db.VarChar(100)
-  parent_id   BigInt?
-  company_id  BigInt?
-  sort_order  Int?
-  created_at  DateTime? @default(now()) @db.Timestamp(6)
-  updated_at  DateTime? @default(now()) @db.Timestamp(6)
-  deleted_at  DateTime?
-  is_toilet   Boolean?
+  id         BigInt    @id @default(autoincrement())
+  name       String    @db.VarChar(100)
+  parent_id  BigInt?
+  company_id BigInt?
+  sort_order Int?
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+  deleted_at DateTime?
+  is_toilet  Boolean?
 
   companies companies? @relation(fields: [company_id], references: [id])
   locations locations[]
@@ -117,11 +117,11 @@ model location_types {
 }
 
 model users {
-  id                  BigInt   @id @default(autoincrement())
-  name                String   @db.VarChar(255)
-  email               String?  @unique @db.VarChar(255)
+  id                  BigInt    @id @default(autoincrement())
+  name                String    @db.VarChar(255)
+  email               String?   @unique @db.VarChar(255)
   password            String?
-  phone               String?  @unique @db.VarChar(15)
+  phone               String?   @unique @db.VarChar(15)
   company_id          BigInt?
   facility_company_id BigInt?
   role_id             Int?
@@ -131,11 +131,11 @@ model users {
   token               String?
   fcm_token           String?
   avatar_url          String?
-  google_id           String? @unique
+  google_id           String?   @unique
 
-  companies         companies?          @relation(fields: [company_id], references: [id])
-  facility_company  facility_companies? @relation(fields: [facility_company_id], references: [id])
-  role              Role?               @relation(fields: [role_id], references: [id])
+  companies        companies?          @relation(fields: [company_id], references: [id])
+  facility_company facility_companies? @relation(fields: [facility_company_id], references: [id])
+  role             Role?               @relation(fields: [role_id], references: [id])
 
   activity_logs     activity_logs[]
   sessions          sessions[]
@@ -150,14 +150,14 @@ model users {
 }
 
 model facility_companies {
-  id          BigInt   @id @default(autoincrement())
-  name        String   @db.VarChar(255)
-  phone       String   @unique @db.VarChar(20)
-  email       String?
-  company_id  BigInt
-  created_at  DateTime @default(now()) @db.Timestamp(6)
-  updated_at  DateTime @updatedAt @db.Timestamp(6)
-  deleted_at  DateTime?
+  id         BigInt    @id @default(autoincrement())
+  name       String    @db.VarChar(255)
+  phone      String    @unique @db.VarChar(20)
+  email      String?
+  company_id BigInt
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  updated_at DateTime  @updatedAt @db.Timestamp(6)
+  deleted_at DateTime?
 
   company   companies @relation(fields: [company_id], references: [id])
   locations locations[]
@@ -165,14 +165,14 @@ model facility_companies {
 }
 
 model cleaner_assignments {
-  id              BigInt   @id @default(autoincrement())
+  id              BigInt    @id @default(autoincrement())
   name            String
   cleaner_user_id BigInt
   supervisor_id   BigInt?
   company_id      BigInt
   location_id     BigInt?
   role_id         Int?
-  status          String? @default("unassigned")
+  status          String?   @default("unassigned")
   created_at      DateTime? @default(now())
   updated_at      DateTime? @default(now())
   deleted_at      DateTime?
@@ -184,8 +184,8 @@ model cleaner_assignments {
 }
 
 model Role {
-  id          Int    @id @default(autoincrement())
-  name        String @unique
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
   permissions String[]
   created_at  DateTime? @default(now())
   updated_at  DateTime? @updatedAt
@@ -197,27 +197,27 @@ model Role {
 }
 
 model shifts {
-  id          BigInt   @id @default(autoincrement())
-  name        String?
-  company_id  BigInt?
-  created_at  DateTime? @default(now())
-  updated_at  DateTime? @updatedAt
-  deleted_at  DateTime?
+  id         BigInt    @id @default(autoincrement())
+  name       String?
+  company_id BigInt?
+  created_at DateTime? @default(now())
+  updated_at DateTime? @updatedAt
+  deleted_at DateTime?
 
   assignments shift_assignments[]
   company     companies? @relation(fields: [company_id], references: [id])
 }
 
 model shift_assignments {
-  id         BigInt   @id @default(autoincrement())
+  id         BigInt    @id @default(autoincrement())
   shiftId    BigInt
   user_id    BigInt
   role_id    Int?
   startDate  DateTime
   endDate    DateTime?
-  status     String @default("active")
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  status     String    @default("active")
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
   deleted_at DateTime?
 
   shift shifts @relation(fields: [shiftId], references: [id])
@@ -236,7 +236,7 @@ model refresh_tokens {
 }
 
 model saved_locations {
-  id          BigInt   @id @default(autoincrement())
+  id          BigInt    @id @default(autoincrement())
   user_id     BigInt
   location_id BigInt
   created_at  DateTime? @default(now())
@@ -245,4 +245,54 @@ model saved_locations {
   locations locations @relation(fields: [location_id], references: [id])
 
   @@unique([user_id, location_id])
+}
+
+model registered_users {
+  id         BigInt   @id @default(autoincrement())
+  user_id    BigInt
+  role_id    Int?
+  company_id BigInt?
+  created_at DateTime @default(now())
+
+  user    users    @relation(fields: [user_id], references: [id])
+  role    Role?    @relation(fields: [role_id], references: [id])
+  company companies? @relation(fields: [company_id], references: [id])
+}
+
+model cleaner_review {
+  id               BigInt   @id @default(autoincrement())
+  cleaner_id       BigInt
+  company_id       BigInt?
+  location_id      BigInt?
+  hygiene_score_id BigInt?
+  rating           Int
+  comment          String?
+  created_at       DateTime @default(now())
+
+  cleaner      users           @relation("CleanerReviews", fields: [cleaner_id], references: [id])
+  company      companies?      @relation("CompanyReviews", fields: [company_id], references: [id])
+  location     locations?      @relation("LocationReviews", fields: [location_id], references: [id])
+  hygieneScore hygiene_scores? @relation(fields: [hygiene_score_id], references: [id])
+}
+
+model user_review {
+  id          BigInt   @id @default(autoincrement())
+  user_id     BigInt
+  location_id BigInt?
+  rating      Int
+  comment     String?
+  created_at  DateTime @default(now())
+
+  user     users      @relation(fields: [user_id], references: [id])
+  location locations? @relation(fields: [location_id], references: [id])
+}
+
+model sessions {
+  id         BigInt   @id @default(autoincrement())
+  user_id    BigInt
+  token      String   @unique
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  user users @relation(fields: [user_id], references: [id])
 }
