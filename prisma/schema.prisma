@@ -93,7 +93,7 @@ cleaner_assignments    cleaner_assignments[]
 cleaner_reviews        cleaner_review[]      @relation("LocationReviews")
 hygiene_scores         hygiene_scores[]
 companies              companies?            @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-facility_companies     facility_companies?   @relation(fields: [facility_companiesId], references: [id])
+facility_companies     facility_companies?   @relation(fields: [facility_company_id], references: [id])
 locations              locations?            @relation("locationsTolocations", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 other_locations        locations[]           @relation("locationsTolocations")
 location_types         location_types?       @relation(fields: [type_id], references: [id], onUpdate: NoAction)
