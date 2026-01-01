@@ -65,12 +65,12 @@ export async function getCleanerReview(req, res) {
       include: {
         cleaner_user: {
           include: {
-            role: true  // Include all role fields
+            role: false, // Include all role fields
           }
         },
         location: {
           include: {
-            location_types: true,
+            location_types: false, 
             locations: true
           }
         },
