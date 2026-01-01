@@ -84,7 +84,7 @@ status                 Boolean?
 user_review_score      Float?
 pincode                String?
 state                  String?
-facility_companiesId   BigInt?
+facility_company_id   BigInt?
 no_of_photos           Int?
 usage_category         Json?                 @db.Json
 close_time             DateTime?             @db.Time(6)
