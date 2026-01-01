@@ -432,7 +432,7 @@ export const getDailyCleaningReport = async (req, res) => {
         const locationWhereClause = {
             company_id: BigInt(company_id),
             status: true,
-            deletedAt: null
+            deleted_at: null
         };
 
         const roleFilter = await RBACFilterService.getLocationFilter(user, "daily_cleaning_report");
@@ -693,7 +693,7 @@ export const getWashroomReport = async (req, res) => {
         const locationWhereClause = {
             company_id: BigInt(company_id),
             status: true,
-            deletedAt: null
+            deleted_at: null
         };
 
         const roleFilter = await RBACFilterService.getLocationFilter(user, "washroom_report");
@@ -1207,7 +1207,7 @@ export const getCleanerReport = async (req, res) => {
         const locationWhereClause = {
             company_id: BigInt(company_id),
             status: true,
-            deletedAt: null
+            deleted_at: null
         };
 
         const roleFilter = await RBACFilterService.getLocationFilter(user, "cleaner_report");
@@ -1311,10 +1311,10 @@ export const getCleanerReport = async (req, res) => {
                         cleaner_user_id: { in: userIds },
                         location_id: { in: allowedLocationIds }, // ✅ Only show common locations
                         status: 'assigned',
-                        deletedAt: null,
+                        deleted_at: null,
                         locations: {
                             status: true,
-                            deletedAt: null,
+                            deleted_at: null,
                         }
                     },
                     select: {
@@ -1644,7 +1644,7 @@ export const getDetailedCleaningReport = async (req, res) => {
         const locationWhereClause = {
             company_id: BigInt(company_id),
             status: true,
-            deletedAt: null
+            deleted_at: null
         };
 
         const roleFilter = await RBACFilterService.getLocationFilter(user, "detailed_cleaning_report");
@@ -2018,7 +2018,7 @@ export const getWashroomDailyScoresReport = async (req, res) => {
         const locationWhereClause = {
             company_id: BigInt(company_id),
             status: true,
-            deletedAt: null
+            deleted_at: null
         };
 
         // const roleFilter = await RBACFilterService.getLocationFilter(user, "washroom_daily_scores");
@@ -2069,10 +2069,10 @@ export const getWashroomDailyScoresReport = async (req, res) => {
             where: {
                 location_id: { in: washroomIds },
                 status: 'assigned',
-                deletedAt: null,
+                deleted_at: null,
                 role_id: 5,
                 cleaner_user: {
-                    deletedAt: null
+                    deleted_at: null
                 }
             },
             include: {
@@ -2653,7 +2653,7 @@ export const getCleanersForReport = async (req, res) => {
         const locationWhereClause = {
             company_id: BigInt(company_id),
             status: true,
-            deletedAt: null
+            deleted_at: null
         };
 
         const roleFilter = await RBACFilterService.getLocationFilter(user, "cleaner_list");
@@ -2687,7 +2687,7 @@ export const getCleanersForReport = async (req, res) => {
             where: {
                 location_id: { in: allowedLocationIds }, // ✅ Only RBAC-filtered locations
                 company_id: BigInt(company_id),
-                deletedAt: null,
+                deleted_at: null,
                 status: 'assigned', // ✅ Only active assignments
             },
             select: {
@@ -2722,7 +2722,7 @@ export const getCleanersForReport = async (req, res) => {
                 id: { in: cleanerUserIds },
                 company_id: BigInt(company_id),
                 role_id: 5, // Cleaner role
-                deletedAt: null,
+                deleted_at: null,
             },
             select: {
                 id: true,
@@ -2776,7 +2776,7 @@ export const getLocationsForReport = async (req, res) => {
         const whereClause = {
             company_id: BigInt(company_id),
             status: true,
-            deletedAt: null
+            deleted_at: null
         };
 
         // ✅ Apply RBAC location filter

@@ -39,7 +39,7 @@ export const getAllShifts = async (req, res) => {
         console.log("Fetching shifts:", { company_id, include_unavailable });
 
         const whereClause = {
-            deletedAt: null,
+            deleted_at: null,
         };
 
         if (company_id) {
@@ -272,7 +272,7 @@ export const updateShift = async (req, res) => {
         const existing = await prisma.shifts.findUnique({
             where: {
                 id: BigInt(id),
-                deletedAt: null,
+                deleted_at: null,
             },
         });
 
@@ -370,7 +370,7 @@ export const deleteShift = async (req, res) => {
         const existing = await prisma.shifts.findUnique({
             where: {
                 id: BigInt(id),
-                deletedAt: null,
+                deleted_at: null,
             },
             include: {
                 assignments: true,
@@ -397,7 +397,7 @@ export const deleteShift = async (req, res) => {
                 id: BigInt(id),
             },
             data: {
-                deletedAt: new Date(),
+                deleted_at: new Date(),
                 status: false,
             },
         });

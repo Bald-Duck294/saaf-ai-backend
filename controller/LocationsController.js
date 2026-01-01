@@ -107,7 +107,7 @@ export const getAllToilets = async (req, res) => {
 
         cleaner_assignments: {
           where: {
-            deletedAt: null,
+            deleted_at: null,
             cleaner_user: {
               role_id: 5 // Only cleaners
             }
@@ -174,7 +174,7 @@ export const getAllToilets = async (req, res) => {
       //   parent_id: loc.parent_id?.toString() || null,
       //   company_id: loc.company_id?.toString() || null,
       //   type_id: loc.type_id?.toString() || null,
-      //   facility_companiesId: loc?.facility_companiesId?.toString() || null,
+      //   facility_company_id: loc?.facility_company_id?.toString() || null,
       //   images: loc.images || [],
       //   averageRating: averageRating ? parseFloat(averageRating.toFixed(2)) : null,
       //   ratingCount,
@@ -192,7 +192,7 @@ export const getAllToilets = async (req, res) => {
         parent_id: loc.parent_id?.toString() || null,
         company_id: loc.company_id?.toString() || null,
         type_id: loc.type_id?.toString() || null,
-        facility_companiesId: loc?.facility_companiesId?.toString() || null,
+        facility_company_id: loc?.facility_company_id?.toString() || null,
         images: loc.images || [],
         averageRating: averageRating ? parseFloat(averageRating.toFixed(2)) : null,
         ratingCount,
@@ -260,7 +260,7 @@ export const toggleStatusToilet = async (req, res) => {
         ? prisma.cleaner_assignments.updateMany({
           where: {
             location_id: BigInt(id),
-            deletedAt: null
+            deleted_at: null
           },
           data: { status: "unassigned" }
         })
@@ -277,7 +277,7 @@ export const toggleStatusToilet = async (req, res) => {
         company_id: updatedToilet.company_id?.toString(),
         type_id: updatedToilet.type_id?.toString() ?? null,
         parent_id: updatedToilet.parent_id?.toString() ?? null,
-        facility_companiesId: updatedToilet?.facility_companiesId.toString() ?? null
+        facility_company_id: updatedToilet?.facility_company_id.toString() ?? null
       }
     });
 
@@ -415,7 +415,7 @@ export const getToiletById = async (req, res) => {
     //   parent_id: location.parent_id?.toString() || null,
     //   company_id: location.company_id?.toString() || null,
     //   type_id: location.type_id?.toString() || null,
-    //   facility_companiesId: location?.facility_companiesId?.toString() || null,
+    //   facility_company_id: location?.facility_company_id?.toString() || null,
     //   hygiene_scores: location.hygiene_scores.map(score => ({
     //     ...score,
     //     id: score.id?.toString() || null,
@@ -729,7 +729,7 @@ export const createLocation = async (req, res) => {
       parent_id: newLocation.parent_id?.toString() || null,
       type_id: newLocation.type_id?.toString() || null,
       company_id: newLocation.company_id?.toString() || null,
-      facility_companiesId: newLocation.facility_companiesId?.toString() || null, // ✅ ADD THIS
+      facility_company_id: newLocation.facility_company_id?.toString() || null, // ✅ ADD THIS
       images: newLocation.images || [],
       location_types: newLocation.location_types ? {
         ...newLocation.location_types,
@@ -851,7 +851,7 @@ export const updateLocationById = async (req, res) => {
     //   options: finalOptions, // ✅ Use processed options
     //   metadata: updateData.metadata || existingLocation.metadata,
     //   images: finalImages, // ✅ Now properly defined
-    //   facility_companiesId: updateData?.facility_companiesId || existingLocation?.facility_companiesId,
+    //   facility_company_id: updateData?.facility_company_id || existingLocation?.facility_company_id,
     //   no_of_photos: parsedNoOfPhotos || existingLocation?.no_of_photos
     // };
 
@@ -902,7 +902,7 @@ export const updateLocationById = async (req, res) => {
       usage_category: finalUsageCategory,
       metadata: updateData.metadata || existingLocation.metadata,
       images: finalImages,
-      facility_companiesId: updateData?.facility_companiesId || existingLocation?.facility_companiesId,
+      facility_company_id: updateData?.facility_company_id || existingLocation?.facility_company_id,
       no_of_photos: parsedNoOfPhotos || existingLocation?.no_of_photos
     };
 
@@ -934,7 +934,7 @@ export const updateLocationById = async (req, res) => {
       parent_id: updatedLocation.parent_id?.toString() || null,
       company_id: updatedLocation.company_id?.toString() || null,
       type_id: updatedLocation.type_id?.toString() || null,
-      facility_companiesId: updatedLocation?.facility_companiesId?.toString() || null,
+      facility_company_id: updatedLocation?.facility_company_id?.toString() || null,
       images: updatedLocation.images || [],
       usage_category: updatedLocation.usage_category || null,
     };
@@ -1045,7 +1045,7 @@ export const deleteLocationById = async (req, res) => {
       }),
       prisma.locations.update({
         where: { id: Number(locationId) },
-        data: { deletedAt: new Date() }
+        data: { deleted_at: new Date() }
       })
     ]);
 
@@ -1153,7 +1153,7 @@ export const getAllToiletsForWeb = async (req, res) => {
         },
         cleaner_assignments: {
           where: {
-            deletedAt: null,
+            deleted_at: null,
             cleaner_user: {
               role_id: 5
             }
@@ -1203,7 +1203,7 @@ export const getAllToiletsForWeb = async (req, res) => {
         parent_id: loc.parent_id?.toString() || null,
         company_id: loc.company_id?.toString() || null,
         type_id: loc.type_id?.toString() || null,
-        facility_companiesId: loc?.facility_companiesId?.toString() || null,
+        facility_company_id: loc?.facility_company_id?.toString() || null,
         images: loc.images || [],
         averageRating: averageRating
           ? parseFloat(averageRating.toFixed(2))

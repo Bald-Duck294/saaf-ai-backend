@@ -8,4 +8,7 @@ dumshiftController.js
 dumconfigRoutes.js
 softDeleteMiddleware.js
 configurationTemplates.js
+settings.json
+generatetoken.js
+test.json
 

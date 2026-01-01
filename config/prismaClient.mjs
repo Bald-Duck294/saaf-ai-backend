@@ -22,35 +22,35 @@ const prisma = basePrisma.$extends({
       async delete({ args, query }) {
         return basePrisma.users.update({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async deleteMany({ args, query }) {
         return basePrisma.users.updateMany({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async findMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findFirst({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findUnique({ args, query }) {
         return basePrisma.users.findFirst({
           ...args,
-          where: { ...args.where, deletedAt: null }
+          where: { ...args.where, deleted_at: null }
         });
       },
       async update({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async updateMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       }
     },
@@ -60,35 +60,35 @@ const prisma = basePrisma.$extends({
       async delete({ args, query }) {
         return basePrisma.locations.update({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async deleteMany({ args, query }) {
         return basePrisma.locations.updateMany({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async findMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findFirst({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findUnique({ args, query }) {
         return basePrisma.locations.findFirst({
           ...args,
-          where: { ...args.where, deletedAt: null }
+          where: { ...args.where, deleted_at: null }
         });
       },
       async update({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async updateMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       }
     },
@@ -98,35 +98,35 @@ const prisma = basePrisma.$extends({
       async delete({ args, query }) {
         return basePrisma.companies.update({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async deleteMany({ args, query }) {
         return basePrisma.companies.updateMany({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async findMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findFirst({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findUnique({ args, query }) {
         return basePrisma.companies.findFirst({
           ...args,
-          where: { ...args.where, deletedAt: null }
+          where: { ...args.where, deleted_at: null }
         });
       },
       async update({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async updateMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       }
     },
@@ -135,35 +135,35 @@ const prisma = basePrisma.$extends({
       async delete({ args, query }) {
         return basePrisma.location_types.update({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async deleteMany({ args, query }) {
         return basePrisma.location_types.updateMany({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async findMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findFirst({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findUnique({ args, query }) {
         return basePrisma.location_types.findFirst({
           ...args,
-          where: { ...args.where, deletedAt: null }
+          where: { ...args.where, deleted_at: null }
         });
       },
       async update({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async updateMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       }
     }
@@ -172,35 +172,35 @@ const prisma = basePrisma.$extends({
       async delete({ args, query }) {
         return basePrisma.cleaner_assignments.update({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async deleteMany({ args, query }) {
         return basePrisma.cleaner_assignments.updateMany({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async findMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findFirst({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findUnique({ args, query }) {
         return basePrisma.cleaner_assignments.findFirst({
           ...args,
-          where: { ...args.where, deletedAt: null }
+          where: { ...args.where, deleted_at: null }
         });
       },
       async update({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async updateMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       }
     },
@@ -209,35 +209,35 @@ const prisma = basePrisma.$extends({
       async delete({ args, query }) {
         return basePrisma.facility_companies.update({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async deleteMany({ args, query }) {
         return basePrisma.facility_companies.updateMany({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async findMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findFirst({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findUnique({ args, query }) {
         return basePrisma.facility_companies.findFirst({
           ...args,
-          where: { ...args.where, deletedAt: null }
+          where: { ...args.where, deleted_at: null }
         });
       },
       async update({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async updateMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       }
     },
@@ -246,35 +246,35 @@ const prisma = basePrisma.$extends({
       async delete({ args, query }) {
         return basePrisma.shifts.update({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async deleteMany({ args, query }) {
         return basePrisma.shifts.updateMany({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async findMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findFirst({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findUnique({ args, query }) {
         return basePrisma.shifts.findFirst({
           ...args,
-          where: { ...args.where, deletedAt: null }
+          where: { ...args.where, deleted_at: null }
         });
       },
       async update({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async updateMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       }
     },
@@ -283,35 +283,35 @@ const prisma = basePrisma.$extends({
       async delete({ args, query }) {
         return basePrisma.shift_assignments.update({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async deleteMany({ args, query }) {
         return basePrisma.shift_assignments.updateMany({
           ...args,
-          data: { deletedAt: new Date() }
+          data: { deleted_at: new Date() }
         });
       },
       async findMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findFirst({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async findUnique({ args, query }) {
         return basePrisma.shift_assignments.findFirst({
           ...args,
-          where: { ...args.where, deletedAt: null }
+          where: { ...args.where, deleted_at: null }
         });
       },
       async update({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       },
       async updateMany({ args, query }) {
-        args.where = { ...args.where, deletedAt: null };
+        args.where = { ...args.where, deleted_at: null };
         return query(args);
       }
     },

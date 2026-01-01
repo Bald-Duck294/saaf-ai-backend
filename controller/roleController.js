@@ -26,7 +26,7 @@ export const getAllRoles = async (req, res) => {
                 const userCount = await prisma.users.count({
                     where: {
                         role_id: role.id,
-                        deletedAt: null, // ✅ Exclude soft-deleted users
+                        deleted_at: null, // ✅ Exclude soft-deleted users
                     },
                 });
 
@@ -79,21 +79,21 @@ export const getRoleById = async (req, res) => {
         const usersCount = await prisma.users.count({
             where: {
                 role_id: role.id,
-                deletedAt: null,
+                deleted_at: null,
             },
         });
 
         const registeredUsersCount = await prisma.registered_users.count({
             where: {
                 role_id: role.id,
-                // registered_users doesn't have deletedAt in your schema
+                // registered_users doesn't have deleted_at in your schema
             },
         });
 
         const cleanerAssignmentsCount = await prisma.cleaner_assignments.count({
             where: {
                 role_id: role.id,
-                deletedAt: null,
+                deleted_at: null,
             },
         });
 
@@ -320,7 +320,7 @@ export const deleteRole = async (req, res) => {
         const usersCount = await prisma.users.count({
             where: {
                 role_id: roleId,
-                deletedAt: null,
+                deleted_at: null,
             },
         });
 
@@ -341,7 +341,7 @@ export const deleteRole = async (req, res) => {
             });
         }
 
-        // Delete role (hard delete for Role table as it doesn't have deletedAt)
+        // Delete role (hard delete for Role table as it doesn't have deleted_at)
         await prisma.role.delete({
             where: { id: roleId },
         });
@@ -394,7 +394,7 @@ export const getUsersByRole = async (req, res) => {
         const users = await prisma.users.findMany({
             where: {
                 role_id: roleId,
-                deletedAt: null, // ✅ Explicit filter
+                deleted_at: null, // ✅ Explicit filter
             },
             select: {
                 id: true,

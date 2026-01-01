@@ -21,7 +21,7 @@ export const getAllFacilityCompanies = async (req, res) => {
         // Build where clause
         if (company_id) {
             whereClause.company_id = BigInt(company_id),
-                whereClause.deletedAt = null
+                whereClause.deleted_at = null
         }
 
 
@@ -86,7 +86,7 @@ export const getFacilityCompanyById = async (req, res) => {
         const facilityCompany = await prisma.facility_companies.findUnique({
             where: {
                 id: BigInt(id),
-                deletedAt: null,
+                deleted_at: null,
             },
             include: {
                 company: {
@@ -253,7 +253,7 @@ export const updateFacilityCompany = async (req, res) => {
         const existing = await prisma.facility_companies.findUnique({
             where: {
                 id: BigInt(id),
-                deletedAt: null,
+                deleted_at: null,
             },
         });
 
@@ -383,7 +383,7 @@ export const deleteFacilityCompany = async (req, res) => {
         const existing = await prisma.facility_companies.findUnique({
             where: {
                 id: BigInt(id),
-                deletedAt: null,
+                deleted_at: null,
             },
             include: {
                 locations: true,
@@ -406,13 +406,13 @@ export const deleteFacilityCompany = async (req, res) => {
             });
         }
 
-        // Soft delete (set deletedAt timestamp)
+        // Soft delete (set deleted_at timestamp)
         const deletedFacilityCompany = await prisma.facility_companies.update({
             where: {
                 id: BigInt(id),
             },
             data: {
-                deletedAt: new Date(),
+                deleted_at: new Date(),
                 status: false, // Also mark as inactive
             },
         });
@@ -440,7 +440,7 @@ export const toggleFacilityCompanyStatus = async (req, res) => {
         const facilityCompany = await prisma.facility_companies.findUnique({
             where: {
                 id: BigInt(id),
-                deletedAt: null,
+                deleted_at: null,
             },
         });
 

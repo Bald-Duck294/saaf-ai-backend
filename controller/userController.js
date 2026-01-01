@@ -64,7 +64,7 @@ export async function getUser(req, res) {
         role: true,
         cleaner_assignments_as_cleaner: {
           where: {
-            deletedAt: null
+            deleted_at: null
           },
           select: {
             name: true,
@@ -214,7 +214,7 @@ export async function getUserById(req, res) {
         companies: true,
         cleaner_assignments_as_cleaner: {
           where: {
-            deletedAt: null
+            deleted_at: null
           },
           select: {
             id: true,
