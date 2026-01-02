@@ -177,7 +177,6 @@ model users {
   facility_companies                facility_companies?   @relation(fields: [facility_company_id], references: [id])
   companies                         companies?            @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   role                              Role?                 @relation(fields: [role_id], references: [id])
-  facility_company_id              BigInt?
 }
 
 model configurations {
