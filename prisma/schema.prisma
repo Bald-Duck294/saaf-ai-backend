@@ -73,7 +73,7 @@ model locations {
   options                Json?                 @default("{}")
   lang_preference        String?               @db.VarChar(255)
   images                 String[]
-  deletedAt              DateTime?
+  deleted_at              DateTime?
   address                String?
   average_cleaning_score Float?
   city                   String?
@@ -83,7 +83,7 @@ model locations {
   user_review_score      Float?
   pincode                String?
   state                  String?
-  facility_companiesId   BigInt?
+  facility_company_id   BigInt?
   no_of_photos           Int?
   usage_category         Json?                 @db.Json
   close_time             DateTime?             @db.Time(6)
@@ -92,7 +92,7 @@ model locations {
   cleaner_reviews        cleaner_review[]      @relation("LocationReviews")
   hygiene_scores         hygiene_scores[]
   companies              companies?            @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  facility_companies     facility_companies?   @relation(fields: [facility_companiesId], references: [id])
+  facility_companies     facility_companies?   @relation(fields: [facility_company_id], references: [id])
   locations              locations?            @relation("locationsTolocations", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_locations        locations[]           @relation("locationsTolocations")
   location_types         location_types?       @relation(fields: [type_id], references: [id], onUpdate: NoAction)
@@ -174,10 +174,10 @@ model users {
   sessions                          sessions[]
   shift_assignments                 shift_assignments[]
   user_review                       user_review[]
-  facility_companies                facility_companies?   @relation(fields: [facility_companiesId], references: [id])
+  facility_companies                facility_companies?   @relation(fields: [facility_company_id], references: [id])
   companies                         companies?            @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   role                              Role?                 @relation(fields: [role_id], references: [id])
-  facility_companiesId              BigInt?
+  facility_company_id              BigInt?
 }
 
 model configurations {
