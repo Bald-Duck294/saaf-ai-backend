@@ -1012,6 +1012,7 @@ export const deleteLocationImage = async (req, res) => {
 
 
 export const deleteLocationById = async (req, res) => {
+  console.log('in delete location')
   try {
     const locationId = req.params.id;
     const companyId = req.query.companyId;
@@ -1019,36 +1020,42 @@ export const deleteLocationById = async (req, res) => {
     console.log('Deleting location:', locationId, 'for company:', companyId);
 
     // Build where clause for security
-    const whereClause = { id: Number(locationId) };
+    const whereClause = { id: BigInt(locationId) };
 
+    console.log('Where clause before company filter:', whereClause);
     // Add company_id filter if provided for additional security
     if (companyId) {
-      whereClause.company_id = Number(companyId);
+      whereClause.company_id = BigInt(companyId);
     }
 
+    console.log('Final where clause for deletion:', whereClause);
     // Check if location exists and belongs to company
     const existingLocation = await prisma.locations.findUnique({
       where: whereClause
     });
 
+    console.log('Existing location:', existingLocation);
     if (!existingLocation) {
+      console.log('Location not found or access denied');
       return res.status(404).json({
         success: false,
         message: "Location not found or access denied"
       });
     }
 
+    console.log('Proceeding to delete location and related assignments');
     // Simply call delete - middleware handles soft delete automatically
     await prisma.$transaction([
       prisma.cleaner_assignments.deleteMany({
-        where: { location_id: Number(locationId) }
+        where: { location_id: BigInt(locationId) }
       }),
-      prisma.locations.update({
-        where: { id: Number(locationId) },
+      prisma.locations.delete({
+        where: whereClause,
         data: { deleted_at: new Date() }
       })
     ]);
 
+    console.log("delete operation completed for location id:", locationId);
     res.json({
       success: true,
       message: "Location deleted successfully",
