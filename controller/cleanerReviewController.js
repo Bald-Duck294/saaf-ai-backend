@@ -20,11 +20,11 @@ export async function getCleanerReview(req, res) {
   //   return res.status(401).json({ message: "Unauthorized" });
   // }
 
-  console.log("request made from get cleaner reviews");
+  // console.log("request made from get cleaner reviews");
 
   const { cleaner_user_id, status, date, company_id } = req.query;
 
-  console.log(company_id, "company_id from get cleaner review");
+  // console.log(company_id, "company_id from get cleaner review");
 
   try {
     const whereClause = {};
@@ -58,7 +58,7 @@ export async function getCleanerReview(req, res) {
       };
     }
 
-    console.log(whereClause, "cleaner-review , finla where clause ")
+    // console.log(whereClause, "cleaner-review , finla where clause ")
 
     const reviews = await prisma.cleaner_review.findMany({
       where: whereClause,

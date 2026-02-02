@@ -20,6 +20,7 @@ import reportRouter from "./routes/reportsRoutes.js";
 import facility_company_router from "./routes/facilityCompanyRoutes.js";
 import shift_router from "./routes/shiftRoutes.js";
 import fcmRoutes from "./routes/fcmRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -110,6 +111,7 @@ app.use("/api/users", userRouter);
 app.use("/api/companies", companyRouter);
 app.use("/api/roles", roleRouter);
 app.use("/api/shifts", shift_router);
+app.use("/api/dashboard", dashboardRoutes)
 
 app.use("/uploads", express.static("uploads"));
 

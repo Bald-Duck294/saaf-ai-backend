@@ -13,7 +13,7 @@ class RBACFilterService {
 
   static async getLocationFilter(user, type,) {
     // Null check
-    console.log(user, "user from get loc filter")
+    // console.log(user, "user from get loc filter")
     if (!user) {
       return { id: -1 };  // No access
     }
@@ -39,6 +39,7 @@ class RBACFilterService {
         where: {
           cleaner_user_id: user_id,
           released_on: null,
+          status: 'assigned'
           // NOT: {
           //   role_id: role_id
           // }
@@ -393,12 +394,13 @@ class RBACFilterService {
           whereClause.role_id = { in: [5] }
         }
 
-        console.log("finalwhereClause", whereClause);
+        // console.log("finalwhereClause", whereClause);
         const assignments = await prisma.cleaner_assignments.findMany({
           where: {
             cleaner_user_id: userId,
             released_on: null,
-            deleted_at: null
+            deleted_at: null,
+            status: 'assigned'
           },
           select: { location_id: true }
         });

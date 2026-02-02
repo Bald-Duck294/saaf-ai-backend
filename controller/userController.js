@@ -43,19 +43,20 @@ export async function getUser(req, res) {
   try {
     const { companyId } = req.query;
     const currentUser = req.user; // From auth middleware
-    console.log(companyId, "companyId");
-    console.log(currentUser, "current user");
+    // console.log(companyId, "companyId");
+    // console.log(currentUser, "current user");
 
     // Step 1: Get role-based filter
     const userFilter = await RBACFilterService.getUserFilter(currentUser, 'getUser');
 
+    // console.log(userFilter, "user filter from rbac service");
     // Step 2: Build complete where clause
     const whereClause = {
       company_id: companyId,
       ...userFilter  // Merge filter from getUserFilter
     };
 
-    console.log(whereClause, "final where clause");
+    // console.log(whereClause, "final where clause");
 
     // Step 3: Fetch filtered users
     const users = await prisma.users.findMany({

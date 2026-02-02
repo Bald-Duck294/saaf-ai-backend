@@ -824,7 +824,7 @@ reviewRoutes.get("/", verifyToken, async (req, res) => {
       };
     }
 
-    console.log(whereClause, "user-review final where clause");
+    // console.log(whereClause, "user-review final where clause");
 
     const user_reviews = await prisma.user_review_qr.findMany({
       where: whereClause,

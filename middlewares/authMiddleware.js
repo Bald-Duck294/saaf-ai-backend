@@ -50,7 +50,7 @@ export const verifyToken = (req, res, next) => {
     // Verify token and extract payload
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    console.log(decoded, "decoded")
+    // console.log(decoded, "decoded")
 
     // Set req.user with all necessary data
     req.user = {

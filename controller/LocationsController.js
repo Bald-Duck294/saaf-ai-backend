@@ -5,7 +5,7 @@ import RBACFilterService from "../utils/rbacFilterService.js";
 
 
 export const getAllToilets = async (req, res) => {
-  console.log("get all toilets");
+  // console.log("get all toilets");
   try {
     // STEP 1: Get user from JWT (already set by verifyToken middleware)
     const user = req.user;
@@ -13,7 +13,7 @@ export const getAllToilets = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    console.log("User from JWT:", user);  // { id, role_id, company_id, email }
+    // console.log("User from JWT:", user);  // { id, role_id, company_id, email }
 
     const { company_id, type_id, include_unavailable } = req.query;
 
@@ -23,14 +23,14 @@ export const getAllToilets = async (req, res) => {
     // STEP 3: Get role-based filter (automatic based on user's role)
     const roleFilter = await RBACFilterService.getLocationFilter(user);
 
-    console.log(roleFilter, "filters data")
+    // console.log(roleFilter, "filters data")
     // STEP 4: Merge role filter into where clause
     Object.assign(whereClause, roleFilter);
 
 
     // STEP 5: Add company filter (only if super admin overrides, otherwise use role filter)
     if (user.role_id === 1 && company_id) {
-      console.log('inside user role id')
+      // console.log('inside user role id')
       // Super admin can override company filter
       whereClause.company_id = BigInt(company_id);
     } else if (user.role_id === 2 && company_id) {
@@ -45,7 +45,7 @@ export const getAllToilets = async (req, res) => {
     }
 
 
-    console.log(whereClause, "where clause")
+    // console.log(whereClause, "where clause")
 
     // STEP 6: Add type filter from query
     if (type_id) {
@@ -60,7 +60,7 @@ export const getAllToilets = async (req, res) => {
       ];
     }
 
-    console.log("Final where clause:", whereClause);
+    // console.log("Final where clause:", whereClause);
 
 
     const today = new Date();
@@ -588,16 +588,18 @@ export const createLocation = async (req, res) => {
     const {
       name, parent_id, type_id, latitude, longitude, options,
       address, pincode, state, city, dist, status,
-      facility_company_id, no_of_photos, usage_category
+      facility_company_id, no_of_photos, usage_category, role_id, user_id
     } = req.body;
     const { companyId } = req.query;
 
-    console.log("=== CREATE LOCATION DEBUG ===");
-    console.log("Company ID:", companyId);
-    console.log("Facility Company ID:", facility_company_id);
-    console.log("Raw body data:", req.body);
-    console.log("Usage Category:", usage_category);
-    console.log("Number of WC:", no_of_photos);
+    const roleId = parseInt(role_id, 10) || null;
+
+    // console.log("=== CREATE LOCATION DEBUG ===");
+    // console.log("Company ID:", companyId);
+    // console.log("Facility Company ID:", facility_company_id);
+    // console.log("Raw body data:", req.body);
+    // console.log("Usage Category:", usage_category);
+    // console.log("Number of WC:", no_of_photos);
 
     // Get uploaded image URLs
     const imageUrls = req.uploadedFiles?.images || [];
@@ -722,6 +724,24 @@ export const createLocation = async (req, res) => {
     console.log("=== LOCATION CREATED ===");
     // console.log("Created location:", newLocation);
 
+
+    if (roleId === 8 && roleId !== null) {
+
+      const add_location_assignments = await prisma.cleaner_assignments.create({
+        data: {
+          name: newLocation.name,
+          cleaner_user_id: BigInt(user_id),
+          company_id: BigInt(companyId),
+          type_id: BigInt(type_id),
+          location_id: newLocation?.id,
+          role_id: roleId,
+          status: 'assigned',
+          assigned_on: new Date()
+
+
+        }
+      })
+    }
 
     const serializedLocation = {
       ...newLocation,
@@ -1078,11 +1098,11 @@ export const deleteLocationById = async (req, res) => {
 
 
 export const getAllToiletsForWeb = async (req, res) => {
-  console.log("get all toilets");
+  // console.log("get all toilets");
 
   try {
     const { company_id, type_id, include_unavailable } = req.query;
-    console.log("req.query ", req.query);
+    // console.log("req.query ", req.query);
     // STEP 1: Build where clause only from query params
     const whereClause = {};
 
@@ -1104,7 +1124,7 @@ export const getAllToiletsForWeb = async (req, res) => {
       ];
     }
 
-    console.log("Final where clause:", whereClause);
+    // console.log("Final where clause:", whereClause);
 
     // STEP 5: Today's date range
     const today = new Date();
