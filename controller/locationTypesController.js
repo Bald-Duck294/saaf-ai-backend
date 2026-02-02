@@ -224,18 +224,93 @@ export const getLocationTypeTree = async (req, res) => {
 };
 
 
-// DELETE /api/location-types/:id
+// // DELETE /api/location-types/:id
+// export const deleteLocationType = async (req, res) => {
+//   const { id } = req.params;
+//   const { companyId } = req.query;
+
+//   try {
+//     // Check if location type exists
+//     const existingType = await prisma.location_types.findUnique({
+//       where: { id: BigInt(id) },
+//       include: {
+//         other_location_types: true, // Check for children
+//         locations: true, // Check for locations using this type
+//       }
+//     });
+
+//     if (!existingType) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Location type not found"
+//       });
+//     }
+
+//     console.log(existingType, "existing type");
+
+//     if (existingType.length === 0) {
+//       const locationIds = existingType.locations.map(loc => loc.id);
+//       console.log(locationIds, "location ids");
+
+//       const updateLocations = await prisma.locations.updateMany({
+//         data: {
+//           type_id: null
+//         },
+//         where: {
+//           id: { in: locationIds }
+//         }
+//       })
+//     }
+//     // Check for children
+//     if (existingType.other_location_types.length > 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Cannot delete location type with child types. Delete children first."
+//       });
+//     }
+
+//     // Check for locations using this type
+//     if (existingType.locations.length > 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `Cannot delete location type. ${existingType.locations.length} location(s) are using this type.`
+//       });
+//     }
+
+//     // Delete the location type (soft delete via middleware)
+//     await prisma.location_types.delete({
+//       where: { id: BigInt(id) }
+//     });
+
+//     res.json({
+//       success: true,
+//       message: "Location type deleted successfully"
+//     });
+
+//   } catch (err) {
+//     console.error("Error deleting location type:", err);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to delete location type",
+//       error: err.message
+//     });
+//   }
+// };
+
+
 export const deleteLocationType = async (req, res) => {
   const { id } = req.params;
-  const { companyId } = req.query;
 
   try {
-    // Check if location type exists
+    const typeId = BigInt(id);
+
     const existingType = await prisma.location_types.findUnique({
-      where: { id: BigInt(id) },
+      where: { id: typeId },
       include: {
-        other_location_types: true, // Check for children
-        locations: true, // Check for locations using this type
+        other_location_types: true, // child types
+        locations: {
+          where: { deleted_at: null } // only active locations
+        }
       }
     });
 
@@ -246,7 +321,7 @@ export const deleteLocationType = async (req, res) => {
       });
     }
 
-    // Check for children
+    // ❗ Prevent deleting if child types exist
     if (existingType.other_location_types.length > 0) {
       return res.status(400).json({
         success: false,
@@ -254,22 +329,22 @@ export const deleteLocationType = async (req, res) => {
       });
     }
 
-    // Check for locations using this type
+    // ✅ Step 1: Detach locations from this type
     if (existingType.locations.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot delete location type. ${existingType.locations.length} location(s) are using this type.`
+      await prisma.locations.updateMany({
+        where: { type_id: typeId },
+        data: { type_id: null }
       });
     }
 
-    // Delete the location type (soft delete via middleware)
+    // ✅ Step 2: Now delete the type
     await prisma.location_types.delete({
-      where: { id: BigInt(id) }
+      where: { id: typeId }
     });
 
-    res.json({
+    return res.json({
       success: true,
-      message: "Location type deleted successfully"
+      message: "Location type deleted and related locations unassigned successfully"
     });
 
   } catch (err) {
