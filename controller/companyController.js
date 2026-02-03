@@ -72,6 +72,8 @@ export const updateCompany = async (req, res) => {
     const { id } = req.params;
     const { name, description, contact_email } = req.body;
 
+    console.log(req.body, "req body");
+
     if (!name) {
       return res.status(400).json({ message: "Company name is required" });
     }
@@ -85,6 +87,7 @@ export const updateCompany = async (req, res) => {
         updated_at: new Date(),
       },
     });
+
 
     res.status(200).json(serializeBigInt(updatedCompany));
   } catch (error) {

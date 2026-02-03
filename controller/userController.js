@@ -1,9 +1,9 @@
 import prisma from "../config/prismaClient.mjs";
 import bcrypt from "bcryptjs";
-import express from 'express';
+import express from "express";
 import RBACFilterService from "../utils/rbacFilterService.js";
 
-// withoud any role id 
+// withoud any role id
 // export async function getUser(req, res) {
 
 //   try {
@@ -37,8 +37,6 @@ import RBACFilterService from "../utils/rbacFilterService.js";
 //   }
 // }
 
-
-
 export async function getUser(req, res) {
   try {
     const { companyId } = req.query;
@@ -47,13 +45,16 @@ export async function getUser(req, res) {
     // console.log(currentUser, "current user");
 
     // Step 1: Get role-based filter
-    const userFilter = await RBACFilterService.getUserFilter(currentUser, 'getUser');
+    const userFilter = await RBACFilterService.getUserFilter(
+      currentUser,
+      "getUser",
+    );
 
     // console.log(userFilter, "user filter from rbac service");
     // Step 2: Build complete where clause
     const whereClause = {
       company_id: companyId,
-      ...userFilter  // Merge filter from getUserFilter
+      ...userFilter, // Merge filter from getUserFilter
     };
 
     // console.log(whereClause, "final where clause");
@@ -65,20 +66,20 @@ export async function getUser(req, res) {
         role: true,
         cleaner_assignments_as_cleaner: {
           where: {
-            deleted_at: null
+            deleted_at: null,
           },
           select: {
             name: true,
 
             locations: {
               select: {
-                name: true
-              }
-            }
-          }
-        }
+                name: true,
+              },
+            },
+          },
+        },
       },
-      orderBy: { id: "desc" }
+      orderBy: { id: "desc" },
     });
 
     // Convert BigInt to string
@@ -90,7 +91,6 @@ export async function getUser(req, res) {
 
     // console.log(usersWithStringIds, "filtered users");
     res.json(usersWithStringIds);
-
   } catch (err) {
     console.error(err);
     res.status(500).send({ msg: "Error fetching users", err });
@@ -200,13 +200,10 @@ export async function getUser(req, res) {
 //   }
 // }
 
-
-
-
 export async function getUserById(req, res) {
   try {
     const { id } = req.params;
-    console.log('Getting user by ID:', id);
+    console.log("Getting user by ID:", id);
 
     const user = await prisma.users.findUnique({
       where: { id: BigInt(id) },
@@ -215,7 +212,7 @@ export async function getUserById(req, res) {
         companies: true,
         cleaner_assignments_as_cleaner: {
           where: {
-            deleted_at: null
+            deleted_at: null,
           },
           select: {
             id: true,
@@ -233,12 +230,12 @@ export async function getUserById(req, res) {
                 latitude: true,
                 longitude: true,
                 pincode: true,
-                type_id: true
-              }
-            }
-          }
+                type_id: true,
+              },
+            },
+          },
         },
-      }
+      },
     });
 
     if (!user) {
@@ -265,43 +262,47 @@ export async function getUserById(req, res) {
       updated_at: user.updated_at,
 
       // Role data
-      role: user.role ? {
-        id: user.role.id,
-        name: user.role.name,
-        description: user.role.description
-      } : null,
-
-      // Company data  
-      companies: user.companies ? {
-        id: user.companies.id.toString(), // ✅ Convert company BigInt
-        name: user.companies.name,
-        description: user.companies.description
-      } : null,
-
-      location_assignments: user?.cleaner_assignments_as_cleaner ? user?.cleaner_assignments_as_cleaner.map((item) => (
-        ({
-          ...item,
-          id: item?.id?.toString(),
-          location_id: item?.id?.toString(),
-          locations: {
-            ...item.locations,
-            id: item?.locations?.id?.toString(),
-            type_id: item?.locations?.type_id?.toString()
+      role: user.role
+        ? {
+            id: user.role.id,
+            name: user.role.name,
+            description: user.role.description,
           }
+        : null,
 
-        }))) : null
+      // Company data
+      companies: user.companies
+        ? {
+            id: user.companies.id.toString(), // ✅ Convert company BigInt
+            name: user.companies.name,
+            description: user.companies.description,
+          }
+        : null,
 
+      location_assignments: user?.cleaner_assignments_as_cleaner
+        ? user?.cleaner_assignments_as_cleaner.map((item) => ({
+            ...item,
+            id: item?.id?.toString(),
+            location_id: item?.id?.toString(),
+            locations: {
+              ...item.locations,
+              id: item?.locations?.id?.toString(),
+              type_id: item?.locations?.type_id?.toString(),
+            },
+          }))
+        : null,
     };
 
     // console.log('User found:', safeUser.name);
-    console.log(safeUser, "safe usere")
+    console.log(safeUser, "safe usere");
     res.json(safeUser);
   } catch (err) {
-    console.error('Error in getUserById:', err);
-    res.status(500).json({ message: "Error fetching user", error: err.message });
+    console.error("Error in getUserById:", err);
+    res
+      .status(500)
+      .json({ message: "Error fetching user", error: err.message });
   }
 }
-
 
 // // Handles POST /api/users
 // export const createUser = async (req, res) => {
@@ -423,7 +424,7 @@ export async function getUserById(req, res) {
 // };
 
 export const createUser = async (req, res) => {
-  console.log('in create user', req.body);
+  console.log("in create user", req.body);
 
   try {
     const { password, location_ids = [], company_id, ...data } = req.body;
@@ -439,16 +440,18 @@ export const createUser = async (req, res) => {
       return res.status(400).json({ message: "Company ID is required" });
     }
 
-    console.log('Hashing password...');
+    console.log("Hashing password...");
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    console.log('Creating user with company_id:', company_id);
+    console.log("Creating user with company_id:", company_id);
 
     // Helper function to serialize BigInt values
     const serializeBigInt = (obj) => {
-      return JSON.parse(JSON.stringify(obj, (key, value) =>
-        typeof value === 'bigint' ? value.toString() : value
-      ));
+      return JSON.parse(
+        JSON.stringify(obj, (key, value) =>
+          typeof value === "bigint" ? value.toString() : value,
+        ),
+      );
     };
 
     const newUser = await prisma.users.create({
@@ -477,10 +480,10 @@ export const createUser = async (req, res) => {
         //     }
         //   }
         // }
-      }
+      },
     });
 
-    console.log('User created successfully:', newUser.id);
+    console.log("User created successfully:", newUser.id);
 
     // Serialize the response to handle BigInt values
     const safeUser = serializeBigInt({
@@ -500,33 +503,32 @@ export const createUser = async (req, res) => {
 
     // console.log('Serialized user data:', safeUser);
     res.status(201).json(safeUser);
-
   } catch (error) {
-    console.error('Error in createUser:', error);
+    console.error("Error in createUser:", error);
 
     // Handle Prisma unique constraint violations
-    if (error.code === 'P2002') {
-      const fieldName = error.meta?.target?.join(', ') || 'field';
+    if (error.code === "P2002") {
+      const fieldName = error.meta?.target?.join(", ") || "field";
       return res.status(409).json({
         message: `User with this ${fieldName} already exists.`,
-        code: 'DUPLICATE_ENTRY'
+        code: "DUPLICATE_ENTRY",
       });
     }
 
     // Handle foreign key constraint violations
-    if (error.code === 'P2003') {
+    if (error.code === "P2003") {
       return res.status(400).json({
         message: "Invalid company ID or location ID provided.",
-        code: 'INVALID_REFERENCE'
+        code: "INVALID_REFERENCE",
       });
     }
 
     // Handle other Prisma errors
-    if (error.code?.startsWith('P')) {
+    if (error.code?.startsWith("P")) {
       return res.status(400).json({
         message: "Database constraint violation.",
         code: error.code,
-        detail: error.message
+        detail: error.message,
       });
     }
 
@@ -534,11 +536,10 @@ export const createUser = async (req, res) => {
     res.status(500).json({
       message: "Error creating user",
       error: error.message,
-      code: 'INTERNAL_ERROR'
+      code: "INTERNAL_ERROR",
     });
   }
 };
-
 
 // --- UPDATE USER ---
 export const updateUser = async (req, res) => {
@@ -557,15 +558,16 @@ export const updateUser = async (req, res) => {
       // ✅ Update user info
       const user = await tx.users.update({
         where: { id: userId },
-        data
+        data,
       });
 
       // ✅ Handle location assignments if provided
-      if (location_ids !== undefined) { // Only update if explicitly provided
+      if (location_ids !== undefined) {
+        // Only update if explicitly provided
         // First, deactivate all existing assignments for this user
         await tx.cleaner_assignments.updateMany({
           where: { cleaner_user_id: userId },
-          data: { status: "unassigned" }, // Mark as unassigned instead of deleting
+          data: { status: "unassigned", role_id: user?.role_id }, // Mark as unassigned instead of deleting
         });
 
         // Then, create/update new assignments
@@ -574,11 +576,11 @@ export const updateUser = async (req, res) => {
             await tx.cleaner_assignments.upsert({
               where: {
                 // ✅ Use composite key from your schema
-                id: BigInt(locId) // If updating existing assignment
+                id: BigInt(locId), // If updating existing assignment
               },
               update: {
                 status: "assigned",
-                updated_at: new Date()
+                updated_at: new Date(),
               },
               create: {
                 cleaner_user_id: userId,
@@ -599,34 +601,33 @@ export const updateUser = async (req, res) => {
     // ✅ Serialize BigInt values
     const safeUser = JSON.parse(
       JSON.stringify(updatedUser, (key, value) =>
-        typeof value === 'bigint' ? value.toString() : value
-      )
+        typeof value === "bigint" ? value.toString() : value,
+      ),
     );
 
     res.status(200).json({
       ...safeUser,
       birthdate: safeUser?.birthdate ? new Date(safeUser.birthdate) : null,
-      message: "User updated successfully"
+      message: "User updated successfully",
     });
-
   } catch (error) {
     console.error("Error in updateUser:", error);
 
-    if (error.code === 'P2002') {
+    if (error.code === "P2002") {
       return res.status(409).json({
-        message: `User with this ${error.meta.target.join(', ')} already exists.`
+        message: `User with this ${error.meta.target.join(", ")} already exists.`,
       });
     }
 
-    if (error.code === 'P2025') {
+    if (error.code === "P2025") {
       return res.status(404).json({
-        message: "User or assignment not found"
+        message: "User or assignment not found",
       });
     }
 
     res.status(500).json({
       message: "Error updating user",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -641,12 +642,14 @@ export const deleteUser = async (req, res) => {
 
     await prisma.cleaner_assignments.deleteMany({
       where: {
-        cleaner_user_id: userId
-      }
-    })
+        cleaner_user_id: userId,
+      },
+    });
     res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
-    console.log(error, "error")
-    res.status(500).json({ message: "Error deleting user", error: error.message });
+    console.log(error, "error");
+    res
+      .status(500)
+      .json({ message: "Error deleting user", error: error.message });
   }
-}
+};

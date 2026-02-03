@@ -3,7 +3,6 @@ import db from "../db.js";
 // import RBACFilterService from "../services/rbacFilterService.js";
 import RBACFilterService from "../utils/rbacFilterService.js";
 
-
 export const getAllToilets = async (req, res) => {
   // console.log("get all toilets");
   try {
@@ -27,7 +26,6 @@ export const getAllToilets = async (req, res) => {
     // STEP 4: Merge role filter into where clause
     Object.assign(whereClause, roleFilter);
 
-
     // STEP 5: Add company filter (only if super admin overrides, otherwise use role filter)
     if (user.role_id === 1 && company_id) {
       // console.log('inside user role id')
@@ -41,9 +39,8 @@ export const getAllToilets = async (req, res) => {
     //   whereClause.company_id = user.company_id;
     // }
     else {
-      whereClause.company_id = company_id
+      whereClause.company_id = company_id;
     }
-
 
     // console.log(whereClause, "where clause")
 
@@ -53,19 +50,31 @@ export const getAllToilets = async (req, res) => {
     }
 
     // STEP 7: Add status filter
-    if (include_unavailable !== 'true') {
-      whereClause.OR = [
-        { status: true },
-        { status: null }
-      ];
+    if (include_unavailable !== "true") {
+      whereClause.OR = [{ status: true }, { status: null }];
     }
 
     // console.log("Final where clause:", whereClause);
 
-
     const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    const startOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      0,
+      0,
+      0,
+      0,
+    );
+    const endOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      23,
+      59,
+      59,
+      999,
+    );
 
     // STEP 8: Query database with merged filters
     const allLocations = await prisma.locations.findMany({
@@ -75,42 +84,42 @@ export const getAllToilets = async (req, res) => {
           where: {
             created_at: {
               gte: startOfDay,
-              lte: endOfDay
-            }
+              lte: endOfDay,
+            },
           },
           select: {
             score: true,
-            created_at: true
+            created_at: true,
           },
           orderBy: {
-            created_at: 'desc'
+            created_at: "desc",
           },
-          take: 1 // Get only the most recent score from today
+          take: 1, // Get only the most recent score from today
         },
         cleaner_reviews: {
           select: {
-            score: true
-          }
+            score: true,
+          },
         },
         location_types: {
           select: {
             id: true,
-            name: true
-          }
+            name: true,
+          },
         },
         facility_companies: {
           select: {
             id: true,
-            name: true
-          }
+            name: true,
+          },
         },
 
         cleaner_assignments: {
           where: {
             deleted_at: null,
             cleaner_user: {
-              role_id: 5 // Only cleaners
-            }
+              role_id: 5, // Only cleaners
+            },
           },
           select: {
             id: true,
@@ -121,17 +130,17 @@ export const getAllToilets = async (req, res) => {
                 id: true,
                 name: true,
                 email: true,
-                phone: true
-              }
-            }
+                phone: true,
+              },
+            },
           },
           orderBy: {
-            assigned_on: 'desc'
-          }
+            assigned_on: "desc",
+          },
         },
       },
       orderBy: {
-        created_at: 'desc'
+        created_at: "desc",
       },
       // take: 4
     });
@@ -142,21 +151,23 @@ export const getAllToilets = async (req, res) => {
     // console.dir("all locations", { depth: null });
     // STEP 9: Format response (SAME as before)
 
-
     const result = allLocations.map((loc) => {
-      const hygieneScores = loc.cleaner_reviews.map(hs => Number(hs.score));
+      const hygieneScores = loc.cleaner_reviews.map((hs) => Number(hs.score));
       const ratingCount = hygieneScores.length;
 
       let averageRating = null;
       if (ratingCount > 0) {
-        const sumOfScores = hygieneScores.reduce((sum, score) => sum + score, 0);
+        const sumOfScores = hygieneScores.reduce(
+          (sum, score) => sum + score,
+          0,
+        );
         averageRating = sumOfScores / ratingCount;
       }
 
-      const currentScore = loc.hygiene_scores.length > 0
-        ? Number(loc.hygiene_scores[0].score)
-        : null;
-
+      const currentScore =
+        loc.hygiene_scores.length > 0
+          ? Number(loc.hygiene_scores[0].score)
+          : null;
 
       //   const hygieneScores = loc.hygiene_scores.map(hs => Number(hs.score));
       // const ratingCount = hygieneScores.length;
@@ -166,7 +177,6 @@ export const getAllToilets = async (req, res) => {
       //   const sumOfScores = hygieneScores.reduce((sum, score) => sum + score, 0);
       //   averageRating = sumOfScores / ratingCount;
       // }
-
 
       // return {
       //   ...loc,
@@ -185,7 +195,6 @@ export const getAllToilets = async (req, res) => {
       //   }
       // };
 
-
       return {
         ...loc,
         id: loc.id.toString(),
@@ -194,39 +203,40 @@ export const getAllToilets = async (req, res) => {
         type_id: loc.type_id?.toString() || null,
         facility_company_id: loc?.facility_company_id?.toString() || null,
         images: loc.images || [],
-        averageRating: averageRating ? parseFloat(averageRating.toFixed(2)) : null,
+        averageRating: averageRating
+          ? parseFloat(averageRating.toFixed(2))
+          : null,
         ratingCount,
         currentScore: currentScore,
         hygiene_scores: undefined,
         location_types: {
           ...loc.location_types,
-          id: loc?.location_types?.id?.toString()
+          id: loc?.location_types?.id?.toString(),
         },
-        facility_companies: loc.facility_companies ? {
-          ...loc.facility_companies,
-          id: loc.facility_companies.id.toString()
-        } : null,
-        cleaner_assignments: loc.cleaner_assignments.map(assignment => ({
+        facility_companies: loc.facility_companies
+          ? {
+              ...loc.facility_companies,
+              id: loc.facility_companies.id.toString(),
+            }
+          : null,
+        cleaner_assignments: loc.cleaner_assignments.map((assignment) => ({
           ...assignment,
           id: assignment.id.toString(),
           cleaner_user: {
             ...assignment.cleaner_user,
-            id: assignment.cleaner_user.id.toString()
-          }
-        }))
+            id: assignment.cleaner_user.id.toString(),
+          },
+        })),
       };
     });
 
-
     // console.log(" Get all Result count:", result.length);
-    res.json(result);  // ← Response format unchanged
-
+    res.json(result); // ← Response format unchanged
   } catch (err) {
     console.error(err);
     res.status(500).send("Error fetching toilet locations");
   }
 };
-
 
 export const toggleStatusToilet = async (req, res) => {
   const { id } = req.params;
@@ -234,13 +244,13 @@ export const toggleStatusToilet = async (req, res) => {
   try {
     // Fetch toilet
     const toilet = await prisma.locations.findUnique({
-      where: { id: BigInt(id) }
+      where: { id: BigInt(id) },
     });
 
     if (!toilet) {
       return res.status(404).json({
         status: "error",
-        message: "Toilet not found for this id"
+        message: "Toilet not found for this id",
       });
     }
 
@@ -248,26 +258,25 @@ export const toggleStatusToilet = async (req, res) => {
     const newStatus = !currentStatus;
 
     const [updatedToilet] = await prisma.$transaction([
-
       // 1. Update toilet
       prisma.locations.update({
         where: { id: BigInt(id) },
-        data: { status: newStatus }
+        data: { status: newStatus },
       }),
 
       // 2. If disabling → make all assignments unassigned
       !newStatus
         ? prisma.cleaner_assignments.updateMany({
-          where: {
-            location_id: BigInt(id),
-            deleted_at: null
-          },
-          data: { status: "unassigned" }
-        })
-        : prisma.cleaner_assignments.findMany() // dummy
+            where: {
+              location_id: BigInt(id),
+              deleted_at: null,
+            },
+            data: { status: "unassigned" },
+          })
+        : prisma.cleaner_assignments.findMany(), // dummy
     ]);
 
-    console.log(updatedToilet, "updated toilet")
+    console.log(updatedToilet, "updated toilet");
     return res.status(200).json({
       status: "success",
       message: `Status changed successfully to ${newStatus ? "active" : "disabled"}`,
@@ -277,10 +286,11 @@ export const toggleStatusToilet = async (req, res) => {
         company_id: updatedToilet.company_id?.toString(),
         type_id: updatedToilet.type_id?.toString() ?? null,
         parent_id: updatedToilet.parent_id?.toString() ?? null,
-        facility_company_id: updatedToilet?.facility_company_id.toString() ?? null
-      }
+        facility_company_id:
+          updatedToilet?.facility_company_id?.toString() ?? null,
+      
+        },
     });
-
   } catch (err) {
     console.error("Error toggling toilet status:", err);
     res.status(500).json({
@@ -289,14 +299,13 @@ export const toggleStatusToilet = async (req, res) => {
       error:
         process.env.NODE_ENV === "development"
           ? err.message
-          : "Internal server error"
+          : "Internal server error",
     });
   }
 };
 
-
 export const getToiletById = async (req, res) => {
-  console.log('get single toilet')
+  console.log("get single toilet");
   try {
     let locId = req.params.id;
     const companyId = req.query.companyId;
@@ -323,20 +332,20 @@ export const getToiletById = async (req, res) => {
             id: true,
             score: true,
             inspected_at: true,
-            created_by: true
+            created_by: true,
           },
         },
         location_types: {
           select: {
             id: true,
-            name: true
-          }
+            name: true,
+          },
         },
         cleaner_assignments: {
           where: {
             status: {
-              in: ["assigned", "active", "ongoing"]
-            }
+              in: ["assigned", "active", "ongoing"],
+            },
           },
           include: {
             cleaner_user: {
@@ -344,14 +353,14 @@ export const getToiletById = async (req, res) => {
                 id: true,
                 name: true,
                 phone: true,
-                email: true
+                email: true,
               },
             },
-            role: true
+            role: true,
           },
           orderBy: { assigned_on: "desc" },
-          take: 5
-        }
+          take: 5,
+        },
       },
     });
 
@@ -366,7 +375,7 @@ export const getToiletById = async (req, res) => {
       where: { toilet_id: Number(locId) },
     });
 
-    console.log(reviews, "reviews")
+    console.log(reviews, "reviews");
     const intReviews = reviews.map((item) => ({
       ...item,
       toilet_id: item.toilet_id?.toString() || null,
@@ -376,7 +385,7 @@ export const getToiletById = async (req, res) => {
     // console.log(intReviews, "int review")
 
     // ✅ UPDATED RATING CALCULATION - Same logic as getAllToilets
-    const hygieneScores = location.hygiene_scores.map(hs => Number(hs.score));
+    const hygieneScores = location.hygiene_scores.map((hs) => Number(hs.score));
     const ratingCount = hygieneScores.length;
 
     let averageRating = null;
@@ -392,18 +401,23 @@ export const getToiletById = async (req, res) => {
         averageRating = parseFloat((sumOfScores / totalCount).toFixed(2));
       }
 
-      console.log('Rating calculation: Including user reviews + hygiene scores');
-      console.log('Hygiene scores:', hygieneScores);
-      console.log('User ratings:', userRatings);
-      console.log('Combined average:', averageRating);
+      console.log(
+        "Rating calculation: Including user reviews + hygiene scores",
+      );
+      console.log("Hygiene scores:", hygieneScores);
+      console.log("User ratings:", userRatings);
+      console.log("Combined average:", averageRating);
     } else {
       // 📊 OPTION 2: Hygiene scores only
       if (ratingCount > 0) {
-        const sumOfScores = hygieneScores.reduce((sum, score) => sum + score, 0);
+        const sumOfScores = hygieneScores.reduce(
+          (sum, score) => sum + score,
+          0,
+        );
         averageRating = parseFloat((sumOfScores / ratingCount).toFixed(2));
       }
 
-      console.log('Rating calculation: Hygiene scores only');
+      console.log("Rating calculation: Hygiene scores only");
       // console.log('Hygiene scores:', hygieneScores);
       // console.log('Average rating:', averageRating);
     }
@@ -475,18 +489,19 @@ export const getToiletById = async (req, res) => {
     //   }))
     // };
 
-
     const result = {
       ...location,
-      hygiene_scores: location.hygiene_scores.map(score => ({ ...score })),
+      hygiene_scores: location.hygiene_scores.map((score) => ({ ...score })),
       // cleaner_assignments: location.cleaner_assignments.map(assignment => ({ ...assignment })),
       images: location.images || [],
       averageRating,
       ratingCount,
       ReviewData: intReviews,
-      ratingSource: INCLUDE_USER_REVIEWS_IN_RATING ? 'hygiene_and_user_reviews' : 'hygiene_only',
-      ratingScale: '1-10',
-      assignedCleaners: location.cleaner_assignments.map(assignment => ({
+      ratingSource: INCLUDE_USER_REVIEWS_IN_RATING
+        ? "hygiene_and_user_reviews"
+        : "hygiene_only",
+      ratingScale: "1-10",
+      assignedCleaners: location.cleaner_assignments.map((assignment) => ({
         id: assignment.id,
         name: assignment.name,
         status: assignment.status,
@@ -494,30 +509,31 @@ export const getToiletById = async (req, res) => {
         releasedOn: assignment.released_on,
         createdAt: assignment.created_at,
         updatedAt: assignment.updated_at,
-        cleaner: assignment.cleaner_user ? { ...assignment.cleaner_user } : null,
+        cleaner: assignment.cleaner_user
+          ? { ...assignment.cleaner_user }
+          : null,
         supervisor: assignment.supervisor ? { ...assignment.supervisor } : null,
-      }))
+      })),
     };
 
     // Use a custom replacer function in JSON.stringify
     const jsonString = JSON.stringify(result, (key, value) => {
-      if (typeof value === 'bigint') {
+      if (typeof value === "bigint") {
         return value.toString();
       }
       return value;
     });
-
 
     res.json(JSON.parse(jsonString));
 
     // console.log(result, 'result 34');
     // res.json(result);
   } catch (err) {
-    console.error('Error in getToiletById:', err);
+    console.error("Error in getToiletById:", err);
     res.status(500).json({
       success: false,
       error: "Error fetching toilet by ID",
-      details: err.message
+      details: err.message,
     });
   }
 };
@@ -529,7 +545,7 @@ export const getSearchToilet = async (req, res) => {
     if (!search) {
       return res.status(400).json({
         success: false,
-        message: "Search query is required"
+        message: "Search query is required",
       });
     }
 
@@ -537,8 +553,8 @@ export const getSearchToilet = async (req, res) => {
     const whereClause = {
       name: {
         contains: search,
-        mode: 'insensitive'
-      }
+        mode: "insensitive",
+      },
     };
 
     // Add company filter if provided
@@ -554,20 +570,19 @@ export const getSearchToilet = async (req, res) => {
         latitude: true,
         longitude: true,
         images: true, // ✅ Include images in search results
-        created_at: true
+        created_at: true,
       },
       orderBy: {
-        name: 'asc'
+        name: "asc",
       },
-      take: 20 // Limit results for performance
+      take: 20, // Limit results for performance
     });
 
     // Convert BigInt to string
-    const result = locations.map(location => ({
+    const result = locations.map((location) => ({
       ...location,
       id: location.id.toString(),
-      images: location.images || [] // ✅ Ensure images is always array
-
+      images: location.images || [], // ✅ Ensure images is always array
     }));
 
     res.json(result);
@@ -575,20 +590,33 @@ export const getSearchToilet = async (req, res) => {
     console.error("Error searching locations:", err);
     res.status(500).json({
       success: false,
-      error: "Error searching locations"
+      error: "Error searching locations",
     });
   }
 };
-
 
 export const createLocation = async (req, res) => {
   console.log("in create location");
 
   try {
     const {
-      name, parent_id, type_id, latitude, longitude, options,
-      address, pincode, state, city, dist, status,
-      facility_company_id, no_of_photos, usage_category, role_id, user_id
+      name,
+      parent_id,
+      type_id,
+      latitude,
+      longitude,
+      options,
+      address,
+      pincode,
+      state,
+      city,
+      dist,
+      status,
+      facility_company_id,
+      no_of_photos,
+      usage_category,
+      role_id,
+      user_id,
     } = req.body;
     const { companyId } = req.query;
 
@@ -612,8 +640,8 @@ export const createLocation = async (req, res) => {
 
     // Handle options parsing
     let finalOptions = options ?? {};
-    if (typeof options === 'string') {
-      if (options === '[object Object]' || options === '{}' || options === '') {
+    if (typeof options === "string") {
+      if (options === "[object Object]" || options === "{}" || options === "") {
         finalOptions = {};
       } else {
         try {
@@ -626,13 +654,15 @@ export const createLocation = async (req, res) => {
       }
     }
 
-
     let finalUsageCategory = null;
     if (usage_category) {
-      if (typeof usage_category === 'string') {
+      if (typeof usage_category === "string") {
         try {
           finalUsageCategory = JSON.parse(usage_category);
-          console.log("Successfully parsed usage_category:", finalUsageCategory);
+          console.log(
+            "Successfully parsed usage_category:",
+            finalUsageCategory,
+          );
         } catch (e) {
           console.error("Failed to parse usage_category:", e);
           finalUsageCategory = null;
@@ -642,19 +672,22 @@ export const createLocation = async (req, res) => {
       }
     }
     // Parse coordinates
-    const parsedLatitude = latitude && latitude !== 'null' ? parseFloat(latitude) : null;
-    const parsedLongitude = longitude && longitude !== 'null' ? parseFloat(longitude) : null;
+    const parsedLatitude =
+      latitude && latitude !== "null" ? parseFloat(latitude) : null;
+    const parsedLongitude =
+      longitude && longitude !== "null" ? parseFloat(longitude) : null;
 
-    const parsedNoOfPhotos = no_of_photos !== undefined && no_of_photos !== null && no_of_photos !== ''
-      ? parseInt(no_of_photos, 10)
-      : null;
+    const parsedNoOfPhotos =
+      no_of_photos !== undefined && no_of_photos !== null && no_of_photos !== ""
+        ? parseInt(no_of_photos, 10)
+        : null;
     // Parse status
-    const parsedStatus = status !== undefined && status !== null
-      ? status === 'true' || status === true
-      : true;
+    const parsedStatus =
+      status !== undefined && status !== null
+        ? status === "true" || status === true
+        : true;
 
     console.log("Parsed coordinates:", { parsedLatitude, parsedLongitude });
-
 
     // ✅ BUILD DATA WITH RELATION SYNTAX
     const locationData = {
@@ -671,32 +704,32 @@ export const createLocation = async (req, res) => {
       city: city || null,
       dist: dist || null,
       status: parsedStatus,
-      no_of_photos: parsedNoOfPhotos || null
+      no_of_photos: parsedNoOfPhotos || null,
     };
 
     //  Add relations using connect syntax
     if (type_id) {
       locationData.location_types = {
-        connect: { id: BigInt(type_id) }
+        connect: { id: BigInt(type_id) },
       };
     }
 
     if (companyId) {
       locationData.companies = {
-        connect: { id: BigInt(companyId) }
+        connect: { id: BigInt(companyId) },
       };
     }
 
     if (parent_id) {
       locationData.locations = {
-        connect: { id: BigInt(parent_id) }
+        connect: { id: BigInt(parent_id) },
       };
     }
 
     //  ADD FACILITY COMPANY RELATION
     if (facility_company_id) {
       locationData.facility_companies = {
-        connect: { id: BigInt(facility_company_id) }
+        connect: { id: BigInt(facility_company_id) },
       };
     }
 
@@ -718,15 +751,13 @@ export const createLocation = async (req, res) => {
         location_types: true,
         companies: true,
         facility_companies: true, // ✅ ADD THIS
-      }
+      },
     });
 
     console.log("=== LOCATION CREATED ===");
     // console.log("Created location:", newLocation);
 
-
     if (roleId === 8 && roleId !== null) {
-
       const add_location_assignments = await prisma.cleaner_assignments.create({
         data: {
           name: newLocation.name,
@@ -735,12 +766,10 @@ export const createLocation = async (req, res) => {
           type_id: BigInt(type_id),
           location_id: newLocation?.id,
           role_id: roleId,
-          status: 'assigned',
-          assigned_on: new Date()
-
-
-        }
-      })
+          status: "assigned",
+          assigned_on: new Date(),
+        },
+      });
     }
 
     const serializedLocation = {
@@ -751,21 +780,29 @@ export const createLocation = async (req, res) => {
       company_id: newLocation.company_id?.toString() || null,
       facility_company_id: newLocation.facility_company_id?.toString() || null, // ✅ ADD THIS
       images: newLocation.images || [],
-      location_types: newLocation.location_types ? {
-        ...newLocation.location_types,
-        id: newLocation.location_types.id.toString(),
-        parent_id: newLocation.location_types.parent_id?.toString() || null,
-        company_id: newLocation.location_types.company_id?.toString() || null,
-      } : null,
-      companies: newLocation.companies ? {
-        ...newLocation.companies,
-        id: newLocation.companies.id.toString(),
-      } : null,
-      facility_companies: newLocation.facility_companies ? {
-        ...newLocation.facility_companies,
-        id: newLocation.facility_companies.id.toString(),
-        company_id: newLocation.facility_companies.company_id?.toString() || null,
-      } : null,
+      location_types: newLocation.location_types
+        ? {
+            ...newLocation.location_types,
+            id: newLocation.location_types.id.toString(),
+            parent_id: newLocation.location_types.parent_id?.toString() || null,
+            company_id:
+              newLocation.location_types.company_id?.toString() || null,
+          }
+        : null,
+      companies: newLocation.companies
+        ? {
+            ...newLocation.companies,
+            id: newLocation.companies.id.toString(),
+          }
+        : null,
+      facility_companies: newLocation.facility_companies
+        ? {
+            ...newLocation.facility_companies,
+            id: newLocation.facility_companies.id.toString(),
+            company_id:
+              newLocation.facility_companies.company_id?.toString() || null,
+          }
+        : null,
     };
 
     res.status(201).json({
@@ -773,7 +810,6 @@ export const createLocation = async (req, res) => {
       message: "Location added successfully.",
       data: serializedLocation,
     });
-
   } catch (err) {
     console.error("Error creating location:", err);
     console.error("Error stack:", err.stack);
@@ -781,16 +817,15 @@ export const createLocation = async (req, res) => {
   }
 };
 
-
 export const updateLocationById = async (req, res) => {
-  console.log('in update location')
+  console.log("in update location");
   try {
     const locationId = req.params.id;
     const companyId = req.query.companyId;
     const updateData = req.body;
 
-    console.log('Updating location:', locationId, 'for company:', companyId);
-    console.log('Update data received:', updateData);
+    console.log("Updating location:", locationId, "for company:", companyId);
+    console.log("Update data received:", updateData);
 
     // Build where clause for security
     const whereClause = { id: Number(locationId) };
@@ -808,7 +843,7 @@ export const updateLocationById = async (req, res) => {
     if (!existingLocation) {
       return res.status(404).json({
         success: false,
-        message: "Location not found or access denied"
+        message: "Location not found or access denied",
       });
     }
 
@@ -825,25 +860,32 @@ export const updateLocationById = async (req, res) => {
     }
 
     //  If replace_images is true, replace all images
-    if (updateData.replace_images === 'true' || updateData.replace_images === true) {
+    if (
+      updateData.replace_images === "true" ||
+      updateData.replace_images === true
+    ) {
       finalImages = newImageUrls;
     }
 
-
-    const parsedNoOfPhotos = updateData.no_of_photos !== undefined && updateData.no_of_photos !== null && updateData.no_of_photos !== ''
-      ? parseInt(updateData?.no_of_photos, 10)
-      : null;
+    const parsedNoOfPhotos =
+      updateData.no_of_photos !== undefined &&
+      updateData.no_of_photos !== null &&
+      updateData.no_of_photos !== ""
+        ? parseInt(updateData?.no_of_photos, 10)
+        : null;
     //  Handle options properly (same as create)
     let finalOptions = existingLocation.options || {};
 
     if (updateData.options) {
-      if (typeof updateData.options === 'string') {
+      if (typeof updateData.options === "string") {
         console.log("Options is string, attempting to parse...");
 
-        if (updateData.options === '[object Object]') {
-          console.warn("Received [object Object] string, keeping existing options");
+        if (updateData.options === "[object Object]") {
+          console.warn(
+            "Received [object Object] string, keeping existing options",
+          );
           finalOptions = existingLocation.options || {};
-        } else if (updateData.options === '{}' || updateData.options === '') {
+        } else if (updateData.options === "{}" || updateData.options === "") {
           console.log("Options is empty string or {}, using empty object");
           finalOptions = {};
         } else {
@@ -851,11 +893,18 @@ export const updateLocationById = async (req, res) => {
             finalOptions = JSON.parse(updateData.options);
             console.log("Successfully parsed options:", finalOptions);
           } catch (e) {
-            console.error("Failed to parse options string:", updateData.options, e);
+            console.error(
+              "Failed to parse options string:",
+              updateData.options,
+              e,
+            );
             finalOptions = existingLocation.options || {};
           }
         }
-      } else if (typeof updateData.options === 'object' && updateData.options !== null) {
+      } else if (
+        typeof updateData.options === "object" &&
+        updateData.options !== null
+      ) {
         console.log("Options is already an object:", updateData.options);
         finalOptions = updateData.options;
       }
@@ -875,34 +924,50 @@ export const updateLocationById = async (req, res) => {
     //   no_of_photos: parsedNoOfPhotos || existingLocation?.no_of_photos
     // };
 
-
-
     let finalUsageCategory = existingLocation.usage_category || null;
 
     if (updateData.usage_category !== undefined) {
-      if (updateData.usage_category === null || updateData.usage_category === '') {
+      if (
+        updateData.usage_category === null ||
+        updateData.usage_category === ""
+      ) {
         console.log("Usage category is null or empty, setting to null");
         finalUsageCategory = null;
-      } else if (typeof updateData.usage_category === 'string') {
+      } else if (typeof updateData.usage_category === "string") {
         console.log("Usage category is string, attempting to parse...");
 
-        if (updateData.usage_category === '[object Object]') {
-          console.warn("Received [object Object] string, keeping existing usage_category");
+        if (updateData.usage_category === "[object Object]") {
+          console.warn(
+            "Received [object Object] string, keeping existing usage_category",
+          );
           finalUsageCategory = existingLocation.usage_category || null;
-        } else if (updateData.usage_category === '{}') {
+        } else if (updateData.usage_category === "{}") {
           console.log("Usage category is empty {}, setting to null");
           finalUsageCategory = null;
         } else {
           try {
             finalUsageCategory = JSON.parse(updateData.usage_category);
-            console.log("Successfully parsed usage_category:", finalUsageCategory);
+            console.log(
+              "Successfully parsed usage_category:",
+              finalUsageCategory,
+            );
           } catch (e) {
-            console.error("Failed to parse usage_category string:", updateData.usage_category, e);
+            console.error(
+              "Failed to parse usage_category string:",
+              updateData.usage_category,
+              e,
+            );
             finalUsageCategory = existingLocation.usage_category || null;
           }
         }
-      } else if (typeof updateData.usage_category === 'object' && updateData.usage_category !== null) {
-        console.log("Usage category is already an object:", updateData.usage_category);
+      } else if (
+        typeof updateData.usage_category === "object" &&
+        updateData.usage_category !== null
+      ) {
+        console.log(
+          "Usage category is already an object:",
+          updateData.usage_category,
+        );
         finalUsageCategory = updateData.usage_category;
       }
     }
@@ -910,20 +975,42 @@ export const updateLocationById = async (req, res) => {
     console.log("Final usage_category for update:", finalUsageCategory);
     const dataToUpdate = {
       name: updateData.name || existingLocation.name,
-      latitude: updateData.latitude && updateData.latitude !== 'null' ? parseFloat(updateData.latitude) : existingLocation.latitude,
-      longitude: updateData.longitude && updateData.longitude !== 'null' ? parseFloat(updateData.longitude) : existingLocation.longitude,
-      type_id: updateData?.type_id !== undefined ? updateData.type_id : existingLocation.type_id,
-      address: updateData.address !== undefined ? updateData.address : existingLocation.address,
-      city: updateData.city !== undefined ? updateData.city : existingLocation.city,
-      state: updateData.state !== undefined ? updateData.state : existingLocation.state,
-      dist: updateData.dist !== undefined ? updateData.dist : existingLocation.dist,
-      pincode: updateData.pincode !== undefined ? updateData.pincode : existingLocation.pincode,
+      latitude:
+        updateData.latitude && updateData.latitude !== "null"
+          ? parseFloat(updateData.latitude)
+          : existingLocation.latitude,
+      longitude:
+        updateData.longitude && updateData.longitude !== "null"
+          ? parseFloat(updateData.longitude)
+          : existingLocation.longitude,
+      type_id:
+        updateData?.type_id !== undefined
+          ? updateData.type_id
+          : existingLocation.type_id,
+      address:
+        updateData.address !== undefined
+          ? updateData.address
+          : existingLocation.address,
+      city:
+        updateData.city !== undefined ? updateData.city : existingLocation.city,
+      state:
+        updateData.state !== undefined
+          ? updateData.state
+          : existingLocation.state,
+      dist:
+        updateData.dist !== undefined ? updateData.dist : existingLocation.dist,
+      pincode:
+        updateData.pincode !== undefined
+          ? updateData.pincode
+          : existingLocation.pincode,
       options: finalOptions,
       usage_category: finalUsageCategory,
       metadata: updateData.metadata || existingLocation.metadata,
       images: finalImages,
-      facility_company_id: updateData?.facility_company_id || existingLocation?.facility_company_id,
-      no_of_photos: parsedNoOfPhotos || existingLocation?.no_of_photos
+      facility_company_id:
+        updateData?.facility_company_id ||
+        existingLocation?.facility_company_id,
+      no_of_photos: parsedNoOfPhotos || existingLocation?.no_of_photos,
     };
 
     // Update parent_id and type_id if provided
@@ -938,7 +1025,7 @@ export const updateLocationById = async (req, res) => {
       ...dataToUpdate,
       options: JSON.stringify(dataToUpdate.options),
       usage_category: JSON.stringify(dataToUpdate.usage_category),
-      imagesCount: finalImages.length
+      imagesCount: finalImages.length,
     });
 
     // Update the location
@@ -954,7 +1041,8 @@ export const updateLocationById = async (req, res) => {
       parent_id: updatedLocation.parent_id?.toString() || null,
       company_id: updatedLocation.company_id?.toString() || null,
       type_id: updatedLocation.type_id?.toString() || null,
-      facility_company_id: updatedLocation?.facility_company_id?.toString() || null,
+      facility_company_id:
+        updatedLocation?.facility_company_id?.toString() || null,
       images: updatedLocation.images || [],
       usage_category: updatedLocation.usage_category || null,
     };
@@ -970,7 +1058,7 @@ export const updateLocationById = async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to update location",
-      details: err.message // Add error details for debugging
+      details: err.message, // Add error details for debugging
     });
   }
 };
@@ -985,7 +1073,7 @@ export const deleteLocationImage = async (req, res) => {
     if (!imageUrl) {
       return res.status(400).json({
         success: false,
-        message: "Image URL is required"
+        message: "Image URL is required",
       });
     }
 
@@ -1001,12 +1089,14 @@ export const deleteLocationImage = async (req, res) => {
     if (!location) {
       return res.status(404).json({
         success: false,
-        message: "Location not found or access denied"
+        message: "Location not found or access denied",
       });
     }
 
     // Remove the specific image URL
-    const updatedImages = (location.images || []).filter(img => img !== imageUrl);
+    const updatedImages = (location.images || []).filter(
+      (img) => img !== imageUrl,
+    );
 
     const updatedLocation = await prisma.locations.update({
       where: { id: Number(locationId) },
@@ -1018,61 +1108,60 @@ export const deleteLocationImage = async (req, res) => {
       message: "Image deleted successfully",
       data: {
         id: updatedLocation.id.toString(),
-        images: updatedLocation.images || []
-      }
+        images: updatedLocation.images || [],
+      },
     });
   } catch (err) {
     console.error("Error deleting location image:", err);
     res.status(500).json({
       success: false,
-      error: "Failed to delete image"
+      error: "Failed to delete image",
     });
   }
 };
 
-
 export const deleteLocationById = async (req, res) => {
-  console.log('in delete location')
+  console.log("in delete location");
   try {
     const locationId = req.params.id;
     const companyId = req.query.companyId;
 
-    console.log('Deleting location:', locationId, 'for company:', companyId);
+    console.log("Deleting location:", locationId, "for company:", companyId);
 
     // Build where clause for security
     const whereClause = { id: BigInt(locationId) };
 
-    console.log('Where clause before company filter:', whereClause);
+    console.log("Where clause before company filter:", whereClause);
     // Add company_id filter if provided for additional security
     if (companyId) {
       whereClause.company_id = BigInt(companyId);
     }
 
-    console.log('Final where clause for deletion:', whereClause);
+    console.log("Final where clause for deletion:", whereClause);
     // Check if location exists and belongs to company
     const existingLocation = await prisma.locations.findUnique({
-      where: whereClause
+      where: whereClause,
     });
 
-    console.log('Existing location:', existingLocation);
+    console.log("Existing location:", existingLocation);
     if (!existingLocation) {
-      console.log('Location not found or access denied');
+      console.log("Location not found or access denied");
       return res.status(404).json({
         success: false,
-        message: "Location not found or access denied"
+        message: "Location not found or access denied",
       });
     }
 
-    console.log('Proceeding to delete location and related assignments');
+    console.log("Proceeding to delete location and related assignments");
     // Simply call delete - middleware handles soft delete automatically
     await prisma.$transaction([
       prisma.cleaner_assignments.deleteMany({
-        where: { location_id: BigInt(locationId) }
+        where: { location_id: BigInt(locationId) },
       }),
       prisma.locations.delete({
         where: whereClause,
-        data: { deleted_at: new Date() }
-      })
+        data: { deleted_at: new Date() },
+      }),
     ]);
 
     console.log("delete operation completed for location id:", locationId);
@@ -1081,21 +1170,18 @@ export const deleteLocationById = async (req, res) => {
       message: "Location deleted successfully",
       data: {
         id: locationId,
-        deleted: true
-      }
+        deleted: true,
+      },
     });
-
   } catch (err) {
     console.error("Error deleting location:", err);
     res.status(500).json({
       success: false,
       error: "Failed to delete location",
-      details: err.message
+      details: err.message,
     });
   }
 };
-
-
 
 export const getAllToiletsForWeb = async (req, res) => {
   // console.log("get all toilets");
@@ -1117,11 +1203,8 @@ export const getAllToiletsForWeb = async (req, res) => {
     }
 
     // STEP 4: Status filter
-    if (include_unavailable !== 'true') {
-      whereClause.OR = [
-        { status: true },
-        { status: null }
-      ];
+    if (include_unavailable !== "true") {
+      whereClause.OR = [{ status: true }, { status: null }];
     }
 
     // console.log("Final where clause:", whereClause);
@@ -1132,13 +1215,19 @@ export const getAllToiletsForWeb = async (req, res) => {
       today.getFullYear(),
       today.getMonth(),
       today.getDate(),
-      0, 0, 0, 0
+      0,
+      0,
+      0,
+      0,
     );
     const endOfDay = new Date(
       today.getFullYear(),
       today.getMonth(),
       today.getDate(),
-      23, 59, 59, 999
+      23,
+      59,
+      59,
+      999,
     );
 
     // STEP 6: Query database
@@ -1149,41 +1238,41 @@ export const getAllToiletsForWeb = async (req, res) => {
           where: {
             created_at: {
               gte: startOfDay,
-              lte: endOfDay
-            }
+              lte: endOfDay,
+            },
           },
           select: {
             score: true,
-            created_at: true
+            created_at: true,
           },
           orderBy: {
-            created_at: 'desc'
+            created_at: "desc",
           },
-          take: 1
+          take: 1,
         },
         cleaner_reviews: {
           select: {
-            score: true
-          }
+            score: true,
+          },
         },
         location_types: {
           select: {
             id: true,
-            name: true
-          }
+            name: true,
+          },
         },
         facility_companies: {
           select: {
             id: true,
-            name: true
-          }
+            name: true,
+          },
         },
         cleaner_assignments: {
           where: {
             deleted_at: null,
             cleaner_user: {
-              role_id: 5
-            }
+              role_id: 5,
+            },
           },
           select: {
             id: true,
@@ -1194,23 +1283,23 @@ export const getAllToiletsForWeb = async (req, res) => {
                 id: true,
                 name: true,
                 email: true,
-                phone: true
-              }
-            }
+                phone: true,
+              },
+            },
           },
           orderBy: {
-            assigned_on: 'desc'
-          }
-        }
+            assigned_on: "desc",
+          },
+        },
       },
       orderBy: {
-        created_at: 'desc'
-      }
+        created_at: "desc",
+      },
     });
 
     // STEP 7: Format response
     const result = allLocations.map((loc) => {
-      const hygieneScores = loc.cleaner_reviews.map(r => Number(r.score));
+      const hygieneScores = loc.cleaner_reviews.map((r) => Number(r.score));
       const ratingCount = hygieneScores.length;
 
       let averageRating = null;
@@ -1240,35 +1329,33 @@ export const getAllToiletsForWeb = async (req, res) => {
         hygiene_scores: undefined,
         location_types: loc.location_types
           ? {
-            ...loc.location_types,
-            id: loc.location_types.id.toString()
-          }
+              ...loc.location_types,
+              id: loc.location_types.id.toString(),
+            }
           : null,
         facility_companies: loc.facility_companies
           ? {
-            ...loc.facility_companies,
-            id: loc.facility_companies.id.toString()
-          }
+              ...loc.facility_companies,
+              id: loc.facility_companies.id.toString(),
+            }
           : null,
-        cleaner_assignments: loc.cleaner_assignments.map(a => ({
+        cleaner_assignments: loc.cleaner_assignments.map((a) => ({
           ...a,
           id: a.id.toString(),
           cleaner_user: {
             ...a.cleaner_user,
-            id: a.cleaner_user.id.toString()
-          }
-        }))
+            id: a.cleaner_user.id.toString(),
+          },
+        })),
       };
     });
 
     res.json(result);
-
   } catch (err) {
     console.error(err);
     res.status(500).send("Error fetching toilet locations");
   }
 };
-
 
 ////////////////////// new get locations with zone apis /////////////////////
 
@@ -1302,7 +1389,9 @@ export const getNearbyLocations = async (req, res) => {
     )
     ORDER BY distance ASC
     LIMIT 50
-  `, [parseFloat(lng), parseFloat(lat), parseInt(radius)]);
+  `,
+      [parseFloat(lng), parseFloat(lat), parseInt(radius)],
+    );
 
     // const updatedResults = result.map((item) => ({
     //   ...item,
@@ -1311,13 +1400,12 @@ export const getNearbyLocations = async (req, res) => {
     // console.log(result , "results");
     // res.json(updatedResults);
     console.log(result, "data");
-    res.json(result)
+    res.json(result);
   } catch (error) {
     console.error("Error fetching nearby locations:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
 
 export const getZonesWithToilets = async (req, res) => {
   console.log("old zones");
@@ -1406,4 +1494,3 @@ export const getZonesWithToilets = async (req, res) => {
     res.status(500).json({ message: "Error fetching zones and toilets" });
   }
 };
-

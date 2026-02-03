@@ -31,7 +31,7 @@ export const getAllAssignments = async (req, res) => {
 
 
     console.log(req.query, "req query");
-    console.log(req.user, "req user");
+    // console.log(req.user, "req user");
     if (company_id) {
       whereClause.company_id = company_id;
     }
